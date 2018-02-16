@@ -1,0 +1,54 @@
+{
+  "name": "gulp-fabricator",
+  "version": "1.0.0",
+  "description": "A multipurpose extension of gulp that allows for simplified and centralized processing and analyzation of Node.js modules and projects.",
+  "main": "dist/fabricator.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nitro404/gulp-fabricator.git"
+  },
+  "keywords": [
+    "gulp",
+    "fabricator"
+  ],
+  "author": {
+    "name": "Kevin Scroggins"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/nitro404/gulp-fabricator/issues"
+  },
+  "homepage": "https://github.com/nitro404/gulp-fabricator#readme",
+  "dependencies": {
+    "autoprefixer": "^8.0.0",
+    "change-case": "^3.0.1",
+    "extra-utilities": "^1.1.5",
+    "gulp": "^3.9.1",
+    "gulp-angular-templatecache": "^2.2.0",
+    "gulp-clean-css": "^3.9.2",
+    "gulp-concat": "^2.6.1",
+    "gulp-htmlhint": "^2.1.0",
+    "gulp-istanbul": "^1.1.3",
+    "gulp-jscs": "^4.1.0",
+    "gulp-less": "^3.5.0",
+    "gulp-lesshint": "^4.1.0",
+    "gulp-mocha": "3.0.1",
+    "gulp-nsp": "^2.4.2",
+    "gulp-postcss": "^7.0.1",
+    "gulp-rename": "^1.2.2",
+    "gulp-sass": "^3.1.0",
+    "gulp-sass-lint": "^1.3.4",
+    "gulp-sequence": "^1.0.0",
+    "gulp-strip-comments": "^2.5.2",
+    "gulp-uglify": "^3.0.0",
+    "merge-stream": "^1.0.1",
+    "path": "^0.12.7",
+    "plugin-error": "^1.0.1",
+    "pump": "^3.0.0",
+    "through2": "^2.0.3",
+    "uglify-js": "^3.3.10"
+  }
+}
