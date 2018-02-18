@@ -1,8 +1,9 @@
 var fabricator = require("./src/fabricator");
 
 fabricator.setup({
-	name: "Fabricator",
+	name: "Gulp Fabricator",
 	build: {
+		fileName: "fabricator",
 		transformation: "none"
 	},
 	base: {

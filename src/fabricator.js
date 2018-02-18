@@ -69,8 +69,8 @@ fabricator.setup = function(options) {
 								}))
 							: gulp.src([]))
 					.pipe(options.build.transformation === "angular" ? fabricator.transform({ transformation: "function" }) : fabricator.noop())
-					.pipe(concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + changeCase.param(options.name) + ".js"))
-					.pipe(options.type === "module" ? fabricator.transform({ transformation: options.build.transformation, name: options.name }) : fabricator.noop())
+					.pipe(concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js"))
+					.pipe(options.type === "module" ? fabricator.transform({ transformation: options.build.transformation, name: options.build.exportName }) : fabricator.noop())
 					.pipe(options.build.stripComments.enabled && options.js.stripComments.enabled ? stripComments(options.js.stripComments.options) : fabricator.noop())
 					.pipe(gulp.dest(options.js.destination))
 					.pipe(rename({ extname: ".min.js" })),
@@ -242,6 +242,14 @@ fabricator.formatOptions = function(options) {
 			nonEmpty: true,
 			required: true,
 			formatter: function(value, format, options) {
+				if(utilities.isEmptyString(value.build.fileName)) {
+					value.build.fileName = changeCase.param(value.name);
+				}
+
+				if(utilities.isEmptyString(value.build.exportName)) {
+					value.build.exportName = changeCase.camel(value.name);
+				}
+
 				if(!Array.isArray(value.test.target)) {
 					value.test.target = [path.join(value.js.destination, "*.js"), "!" + path.join(value.js.destination, "*.min.js")];
 				}
@@ -2118,6 +2126,18 @@ fabricator.formatOptions = function(options) {
 						enabled: {
 							type: "boolean",
 							default: true
+						},
+						fileName: {
+							type: "string",
+							case: "param",
+							trim: true,
+							nonEmpty: true
+						},
+						exportName: {
+							type: "string",
+							case: "camel",
+							trim: true,
+							nonEmpty: true
 						},
 						transformation: {
 							type: "string",
