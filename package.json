@@ -36,7 +36,7 @@
     "gulp-less": "^3.5.0",
     "gulp-lesshint": "^4.1.0",
     "gulp-mocha": "3.0.1",
-    "gulp-nsp": "^2.4.2",
+    "gulp-nsp": "^3.0.0",
     "gulp-postcss": "^7.0.1",
     "gulp-rename": "^1.2.2",
     "gulp-sass": "^3.1.0",
