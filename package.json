@@ -6,7 +6,9 @@
   "scripts": {
     "build": "gulp build",
     "lint": "gulp lint",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "mocha",
+    "coverage": "gulp coverage",
+    "coveralls": "npm run coverage -- --report lcovonly && cat ./coverage/lcov.info | coveralls",
     "security": "gulp security"
   },
   "repository": {
@@ -53,5 +55,8 @@
     "pump": "^3.0.0",
     "through2": "^2.0.3",
     "uglify-js": "^3.3.28"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2"
   }
 }
