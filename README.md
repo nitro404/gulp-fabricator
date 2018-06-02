@@ -1,4 +1,4 @@
-# Gulp Fabtricator
+# Gulp Fabricator
 
 [![NPM version][npm-version-image]][npm-url]
 [![Build Status][build-status-image]][build-status-url]
