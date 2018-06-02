@@ -1,6 +1,6 @@
 {
   "name": "gulp-fabricator",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A multipurpose extension of gulp that allows for simplified and centralized processing and analyzation of Node.js modules and projects.",
   "main": "dist/fabricator.js",
   "scripts": {
