@@ -3,7 +3,7 @@
 [![NPM version][npm-version-image]][npm-url]
 [![Build Status][build-status-image]][build-status-url]
 [![Coverage Status][coverage-image]][coverage-url]
-[![Known Vulnerabilities][snyk-image]][snyk-url]
+[![Known Vulnerabilities][vulnerabilities-image]][vulnerabilities-url]
 [![Downloads][npm-downloads-image]][npm-url]
 
 A multipurpose extension of gulp that allows for simplified and centralized processing and analyzation of Node.js modules and projects.
@@ -33,6 +33,17 @@ To install this module:
 npm install --save-dev gulp-fabricator
 ```
 
+## Building
+
+To build the distribution files for this module:
+```bash
+npm run build
+```
+or
+```bash
+gulp build
+```
+
 ## Notes
 
 JavaScript linting is permanently disabled for now until [gulp-jscs](https://github.com/jscs-dev/gulp-jscs) is updated to allow for direct specification of configuration options, see this [pull request](https://github.com/jscs-dev/gulp-jscs/pull/123) for updates.
@@ -47,5 +58,5 @@ JavaScript linting is permanently disabled for now until [gulp-jscs](https://git
 [coverage-url]: https://coveralls.io/github/nitro404/gulp-fabricator?branch=master
 [coverage-image]: https://coveralls.io/repos/github/nitro404/gulp-fabricator/badge.svg?branch=master
 
-[snyk-url]: https://snyk.io/test/github/nitro404/gulp-fabricator?targetFile=package.json
-[snyk-image]: https://snyk.io/test/github/nitro404/gulp-fabricator/badge.svg?targetFile=package.json
+[vulnerabilities-url]: https://snyk.io/test/github/nitro404/gulp-fabricator?targetFile=package.json
+[vulnerabilities-image]: https://snyk.io/test/github/nitro404/gulp-fabricator/badge.svg?targetFile=package.json
