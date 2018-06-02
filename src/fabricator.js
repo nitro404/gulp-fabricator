@@ -31,6 +31,8 @@ var fabricator = { };
 fabricator.setup = function(options) {
 	options = fabricator.formatOptions(options);
 
+	fabricator.config = options;
+
 	function namespace(value) {
 		if(utilities.isEmptyString(value)) {
 			return value;
