@@ -60,13 +60,13 @@ fabricator.setup = function(options) {
 						options.build.transformation === "angular" && options.html.angular.cacheTemplates
 							? gulp.src(options.html.source)
 								.pipe(options.build.stripComments.enabled && options.html.stripComments.enabled ? stripComments(options.html.stripComments.options) : fabricator.noop())
-								.pipe(trimWhitespace(true))
+								.pipe(fabricator.transformation.trimWhitespace(true))
 								.pipe(angularTemplateCache({
 									module: changeCase.param(options.name) + ".templates",
 									standalone: true,
 									root: options.html.angular.templateRoot,
 									transformUrl: function(value) {
-										return utilities.isEmptyString(value) ? value : value.replace(new RegExp("^(.*" + options.html.angular.templateRoot + "([\/\\]))", "i"), changeCase.param(options.name) + "$2");
+										return utilities.isEmptyString(value) ? value : value.replace(new RegExp("^(.*" + options.html.angular.templateRoot + "([/\\]))", "i"), changeCase.param(options.name) + "$2");
 									}
 								}))
 							: gulp.src([]))
@@ -2402,7 +2402,7 @@ fabricator.transformation.indentText = function(buffer, options) {
 	return updateContent(
 		buffer,
 		utilities.indentText(getContent(buffer), options.amount, options.indentation, options.clearEmptyLines),
-		formattedOptions.encoding
+		options.encoding
 	);
 };
 
@@ -2428,7 +2428,7 @@ fabricator.transformation.trimWhitespace = function(buffer, options) {
 	return updateContent(
 		buffer,
 		utilities.trimWhitespace(getContent(buffer), options.trimNewlines),
-		formattedOptions.encoding
+		options.encoding
 	);
 };
 
@@ -2448,7 +2448,7 @@ fabricator.transformation.function = function(buffer, options) {
 		utilities.trimTrailingNewlines(utilities.indentText(getContent(buffer), 1, options.indentation)) + options.newLine +
 		options.newLine +
 		"})();" + options.newLine,
-		formattedOptions.encoding
+		options.encoding
 	);
 };
 
@@ -2512,7 +2512,7 @@ fabricator.transformation.angular = function(buffer, options) {
 		utilities.trimTrailingNewlines(utilities.indentParagraph(getContent(buffer), 1, options.indentation)) + options.newLine +
 		options.newLine +
 		"}));" + options.newLine,
-		formattedOptions.encoding
+		options.encoding
 	);
 };
 
