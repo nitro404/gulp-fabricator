@@ -1,3 +1,5 @@
+"use strict";
+
 var gulp = require("gulp");
 var rename = require("gulp-rename");
 var sequence = require("gulp-sequence");
@@ -2244,6 +2246,14 @@ fabricator.formatOptions = function(options) {
 						source: {
 							type: "array",
 							default: ["test/*.js"],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
+						},
+						target: {
+							type: "array",
 							format: {
 								type: "string",
 								trim: true,
