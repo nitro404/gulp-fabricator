@@ -2252,6 +2252,14 @@ fabricator.formatOptions = function(options) {
 								nonEmpty: true
 							}
 						},
+						target: {
+							type: "array",
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
+						},
 						reporter: {
 							type: "string",
 							trim: true,
