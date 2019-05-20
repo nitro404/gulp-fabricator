@@ -73,7 +73,7 @@ fabricator.setup = function(options) {
 								}))
 							: gulp.src([]))
 					.pipe(options.build.transformation === "angular" ? fabricator.transform({ transformation: "function" }) : fabricator.noop())
-					.pipe(concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js"))
+					.pipe(options.build.bundle ? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js") : fabricator.noop())
 					.pipe(options.type === "module" ? fabricator.transform({ transformation: options.build.transformation, name: options.build.exportName }) : fabricator.noop())
 					.pipe(options.build.stripComments.enabled && options.js.stripComments.enabled ? stripComments(options.js.stripComments.options) : fabricator.noop())
 					.pipe(gulp.dest(options.js.destination))
@@ -333,6 +333,10 @@ fabricator.formatOptions = function(options) {
 							trim: true,
 							nonEmpty: true,
 							default: "dist/"
+						},
+						bundle: {
+							type: "boolean",
+							default: true
 						},
 						stripComments: {
 							type: "object",
