@@ -3,9 +3,12 @@
 var gulp = require("gulp");
 var rename = require("gulp-rename");
 var sequence = require("gulp-sequence");
+var filter = require("gulp-filter");
 var concat = require("gulp-concat");
 var stripComments = require("gulp-strip-comments");
 var angularTemplateCache = require("gulp-angular-templatecache");
+var sourcemaps = require("gulp-sourcemaps");
+var babel = require("gulp-babel");
 var uglifyJS = require("uglify-js");
 var uglifyComposer = require("gulp-uglify/composer");
 var jscs = require("gulp-jscs");
@@ -24,7 +27,7 @@ var mergeStream = require("merge-stream");
 var through = require("through2");
 var utilities = require("extra-utilities");
 var changeCase = require("change-case");
-var path = require("path");
+var path = require("path-extra");
 var PluginError = require("plugin-error");
 
 var fabricator = { };
@@ -59,7 +62,9 @@ fabricator.setup = function(options) {
 						gulp.src(options.js.source),
 						options.build.transformation === "angular" && options.html.angular.cacheTemplates
 							? gulp.src(options.html.source)
-								.pipe(options.build.stripComments.enabled && options.html.stripComments.enabled ? stripComments(options.html.stripComments.options) : fabricator.noop())
+								.pipe(options.build.stripComments.enabled && options.html.stripComments.enabled
+									? stripComments(options.html.stripComments.options)
+									: fabricator.noop())
 								.pipe(fabricator.transformation.trimWhitespace(true))
 								.pipe(angularTemplateCache({
 									module: changeCase.param(options.name) + ".templates",
@@ -70,14 +75,64 @@ fabricator.setup = function(options) {
 									}
 								}))
 							: gulp.src([]))
-					.pipe(options.build.transformation === "angular" ? fabricator.transform({ transformation: "function" }) : fabricator.noop())
-					.pipe(options.build.bundle ? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js") : fabricator.noop())
-					.pipe(options.type === "module" ? fabricator.transform({ transformation: options.build.transformation, name: options.build.exportName }) : fabricator.noop())
-					.pipe(options.build.stripComments.enabled && options.js.stripComments.enabled ? stripComments(options.js.stripComments.options) : fabricator.noop())
+					.pipe(options.build.transformation === "angular"
+						? fabricator.transform({ transformation: "function" })
+						: fabricator.noop())
+					.pipe(options.build.bundle
+						? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js")
+						: fabricator.noop())
+					.pipe(options.type === "module"
+						? fabricator.transform({
+							transformation: options.build.transformation,
+							name: options.build.exportName
+						})
+						: fabricator.noop())
+					.pipe(options.build.stripComments.enabled && options.js.stripComments.enabled
+						? stripComments(options.js.stripComments.options)
+						: fabricator.noop())
+					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
+						? sourcemaps.init()
+						: fabricator.noop())
+					.pipe(options.js.babel.enabled
+						? babel({
+							presets: options.js.babel.presets
+						})
+						: fabricator.noop())
+					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
+						? sourcemaps.write(options.js.sourcemaps.embed
+							? undefined
+							: options.js.sourcemaps.destination)
+						: fabricator.noop())
 					.pipe(gulp.dest(options.js.destination))
-					.pipe(rename({ extname: ".min.js" })),
-					uglifyComposer(uglifyJS, console)({ mangle: false }),
-					gulp.dest(options.js.destination)
+					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
+						? filter(function(file) {
+							var fileName = utilities.getFileName(file.path);
+
+							if(utilities.isNonEmptyString(fileName) && fileName.indexOf(".map") !== -1) {
+								return false;
+							}
+
+							return true;
+						})
+						: fabricator.noop())
+					.pipe(options.js.minify
+						? rename({ extname: ".min.js" })
+						: fabricator.noop())
+					.pipe(options.js.minify && options.js.sourcemaps.enabled && options.js.sourcemaps.postMinify
+						? sourcemaps.init()
+						: fabricator.noop()),
+					options.js.minify
+						? uglifyComposer(uglifyJS, console)({ mangle: false })
+						: fabricator.noop(),
+					fabricator.noop()
+					.pipe(options.js.minify && options.js.sourcemaps.enabled && options.js.sourcemaps.postMinify
+						? sourcemaps.write(options.js.sourcemaps.embed
+							? undefined
+							: options.js.sourcemaps.destination)
+						: fabricator.noop()),
+					options.js.minify
+						? gulp.dest(options.js.destination)
+						: fabricator.noop()
 				], callback);
 			});
 
@@ -112,21 +167,35 @@ fabricator.setup = function(options) {
 					gulp.src(options.css.source),
 					options.build.tasks.includes("scss")
 						? gulp.src(options.scss.source)
-							.pipe(options.build.stripComments.enabled && options.scss.stripComments.enabled ? stripComments(options.scss.stripComments.options) : fabricator.noop())
+							.pipe(options.build.stripComments.enabled && options.scss.stripComments.enabled
+								? stripComments(options.scss.stripComments.options)
+								: fabricator.noop())
 							.pipe(sass().on("error", sass.logError))
 						: gulp.src([]),
 					options.build.tasks.includes("less")
 						? gulp.src(options.less.source)
-							.pipe(options.build.stripComments.enabled && options.less.stripComments.enabled ? stripComments(options.less.stripComments.options) : fabricator.noop())
+							.pipe(options.build.stripComments.enabled && options.less.stripComments.enabled
+								? stripComments(options.less.stripComments.options)
+								: fabricator.noop())
 							.pipe(less())
 						: gulp.src([]))
 					.pipe(rename({ prefix: utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix }))
-					.pipe(options.css.autoprefixer.enabled ? postCSS([autoprefixer(options.css.autoprefixer.options)]) : fabricator.noop())
-					.pipe(options.build.stripComments.enabled && options.css.stripComments.enabled ? stripComments(options.css.stripComments.options) : fabricator.noop())
+					.pipe(options.css.autoprefixer.enabled
+						? postCSS([autoprefixer(options.css.autoprefixer.options)])
+						: fabricator.noop())
+					.pipe(options.build.stripComments.enabled && options.css.stripComments.enabled
+						? stripComments(options.css.stripComments.options)
+						: fabricator.noop())
 					.pipe(gulp.dest(options.css.destination))
-					.pipe(cleanCSS())
-					.pipe(rename({ extname: ".min.css" }))
-					.pipe(gulp.dest(options.css.destination))
+					.pipe(options.css.minify
+						? cleanCSS()
+						: fabricator.noop())
+					.pipe(options.css.minify
+						? rename({ extname: ".min.css" })
+						: fabricator.noop())
+					.pipe(options.css.minify
+						? gulp.dest(options.css.destination)
+						: fabricator.noop())
 					.on("end", callback);
 			});
 
@@ -157,7 +226,7 @@ fabricator.setup = function(options) {
 	}
 
 	if(options.test.enabled) {
-		gulp.task(namespace("test:main"), function(callback) {
+		gulp.task(namespace("test:main"), function() {
 			gulp.src(options.test.source)
 				.pipe(mocha({ reporter: options.test.reporter }));
 		});
@@ -174,7 +243,7 @@ fabricator.setup = function(options) {
 
 		tasks.coverage.push(namespace("coverage:before"));
 
-		gulp.task(namespace("coverage:main"), function(callback) {
+		gulp.task(namespace("coverage:main"), function() {
 			gulp.src(options.test.source)
 				.pipe(mocha())
 				.pipe(istanbul.writeReports());
@@ -350,6 +419,60 @@ fabricator.formatOptions = function(options) {
 									}
 								}
 							}
+						},
+						babel: {
+							type: "object",
+							strict: true,
+							autopopulate: true,
+							removeExtra: true,
+							format: {
+								enabled: {
+									type: "boolean",
+									default: false
+								},
+								presets: {
+									type: "array",
+									nonEmpty: true,
+									default: ["@babel/env"],
+									format: {
+										type: "string",
+										trim: true,
+										nonEmpty: true,
+									}
+								}
+							}
+						},
+						sourcemaps: {
+							type: "object",
+							strict: true,
+							autopopulate: true,
+							removeExtra: true,
+							format: {
+								enabled: {
+									type: "boolean",
+									default: true
+								},
+								embed: {
+									type: "boolean",
+									default: false
+								},
+								destination: {
+									type: "string",
+									default: "."
+								},
+								postCompile: {
+									type: "boolean",
+									default: true
+								},
+								postMinify: {
+									type: "boolean",
+									default: true
+								}
+							}
+						},
+						minify: {
+							type: "boolean",
+							default: true
 						},
 						lint: {
 							type: "object",
@@ -2084,6 +2207,10 @@ fabricator.formatOptions = function(options) {
 									}
 								}
 							}
+						},
+						minify: {
+							type: "boolean",
+							default: true
 						}
 					}
 				},
