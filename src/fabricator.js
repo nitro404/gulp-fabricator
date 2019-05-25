@@ -282,6 +282,14 @@ fabricator.setup = function(options) {
 
 	tasks.default.push("build", "lint");
 
+	var additionalTaskTypes = Object.keys(options.additionalTasks);
+
+	for(var i = 0; i < additionalTaskTypes.length; i++) {
+		var additionalTaskType = additionalTaskTypes[i];
+
+		Array.prototype.push.apply(tasks[additionalTaskType], options.additionalTasks[additionalTaskType]);
+	}
+
 	gulp.task(namespace("build"), utilities.isEmptyArray(tasks.build) ? [] : sequence.apply(this, tasks.build));
 	gulp.task(namespace("lint"), utilities.isEmptyArray(tasks.lint) ? [] : sequence.apply(this, tasks.lint));
 	gulp.task(namespace("test"), utilities.isEmptyArray(tasks.test) ? [] : sequence.apply(this, tasks.test));
@@ -2394,6 +2402,68 @@ fabricator.formatOptions = function(options) {
 						enabled: {
 							type: "boolean",
 							default: true
+						}
+					}
+				},
+				additionalTasks: {
+					type: "object",
+					strict: true,
+					autopopulate: true,
+					removeExtra: true,
+					format: {
+						build: {
+							type: "array",
+							default: [],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
+						},
+						lint: {
+							type: "array",
+							default: [],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
+						},
+						test: {
+							type: "array",
+							default: [],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
+						},
+						coverage: {
+							type: "array",
+							default: [],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
+						},
+						watch: {
+							type: "array",
+							default: [],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
+						},
+						default: {
+							type: "array",
+							default: [],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
+							}
 						}
 					}
 				}
