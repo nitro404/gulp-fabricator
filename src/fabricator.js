@@ -19,7 +19,6 @@ var postCSS = require("gulp-postcss");
 var autoprefixer = require("autoprefixer");
 var mocha = require("gulp-mocha");
 var istanbul = require("gulp-istanbul");
-var nsp = require("gulp-nsp");
 var pump = require("pump");
 var mergeStream = require("merge-stream");
 var through = require("through2");
@@ -48,7 +47,6 @@ fabricator.setup = function(options) {
 		lint: [],
 		test: [],
 		coverage: [],
-		security: [],
 		watch: [],
 		default: []
 	};
@@ -185,17 +183,6 @@ fabricator.setup = function(options) {
 		tasks.coverage.push(namespace("coverage:main"));
 	}
 
-	if(options.security.enabled) {
-		gulp.task(namespace("security:main"), function(callback) {
-			nsp({
-				package: path.join(utilities.isEmptyString(options.base.directory) ? "" : options.base.directory, "package.json"),
-				stopOnError: false
-			}, callback);
-		});
-
-		tasks.security.push(namespace("security:main"));
-	}
-
 	gulp.task(namespace("watch:main"), function() {
 		if(options.build.tasks.includes("js")) {
 			gulp.watch(options.js.source, [namespace("build:js")]);
@@ -224,13 +211,12 @@ fabricator.setup = function(options) {
 		tasks.default.push("watch");
 	}
 
-	tasks.default.push("build", "lint", "security");
+	tasks.default.push("build", "lint");
 
 	gulp.task(namespace("build"), utilities.isEmptyArray(tasks.build) ? [] : sequence.apply(this, tasks.build));
 	gulp.task(namespace("lint"), utilities.isEmptyArray(tasks.lint) ? [] : sequence.apply(this, tasks.lint));
 	gulp.task(namespace("test"), utilities.isEmptyArray(tasks.test) ? [] : sequence.apply(this, tasks.test));
 	gulp.task(namespace("coverage"), utilities.isEmptyArray(tasks.coverage) ? [] : sequence.apply(this, tasks.coverage));
-	gulp.task(namespace("security"), utilities.isEmptyArray(tasks.security) ? [] : sequence.apply(this, tasks.security));
 	gulp.task(namespace("watch"), utilities.isEmptyArray(tasks.watch) ? [] : sequence.apply(this, tasks.watch));
 	gulp.task(namespace("default"), utilities.isEmptyArray(tasks.default) ? [] : sequence.apply(this, tasks.default));
 };
@@ -2273,18 +2259,6 @@ fabricator.formatOptions = function(options) {
 					}
 				},
 				coverage: {
-					type: "object",
-					strict: true,
-					autopopulate: true,
-					removeExtra: true,
-					format: {
-						enabled: {
-							type: "boolean",
-							default: true
-						}
-					}
-				},
-				security: {
 					type: "object",
 					strict: true,
 					autopopulate: true,
