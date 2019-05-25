@@ -4,7 +4,8 @@ fabricator.setup({
 	name: "Gulp Fabricator",
 	build: {
 		fileName: "fabricator",
-		transformation: "none"
+		transformation: "none",
+		enabled: false
 	},
 	base: {
 		directory: __dirname
