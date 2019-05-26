@@ -173,12 +173,12 @@ fabricator.setup = function(options) {
 							.pipe(sass().on("error", sass.logError))
 						: gulp.src([]),
 					options.build.tasks.includes("less")
-						? gulp.src(options.less.source)
+						? gulp.src(options.less.source).on("error", function() { })
 							.pipe(options.build.stripComments.enabled && options.less.stripComments.enabled
 								? stripComments(options.less.stripComments.options)
 								: fabricator.noop())
 							.pipe(less())
-						: gulp.src([]))
+						: gulp.src([])).on("error", function() { })
 					.pipe(rename({ prefix: utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix }))
 					.pipe(options.css.autoprefixer.enabled
 						? postCSS([autoprefixer(options.css.autoprefixer.options)])
