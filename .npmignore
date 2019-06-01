@@ -2,6 +2,7 @@ node_modules
 bower_components
 test
 coverage
+docs
 .sass-cache
 .coveralls.yml
 .travis.yml

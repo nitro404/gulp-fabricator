@@ -1,38 +1,101 @@
 "use strict";
 
-var gulp = require("gulp");
-var rename = require("gulp-rename");
-var sequence = require("gulp-sequence");
-var filter = require("gulp-filter");
-var concat = require("gulp-concat");
-var stripComments = require("gulp-strip-comments");
-var angularTemplateCache = require("gulp-angular-templatecache");
-var sourcemaps = require("gulp-sourcemaps");
-var babel = require("gulp-babel");
-var uglifyJS = require("uglify-js");
-var uglifyComposer = require("gulp-uglify/composer");
-var jscs = require("gulp-jscs");
-var sass = require("gulp-sass");
-var sassLint = require("gulp-sass-lint");
-var less = require("gulp-less");
-var lessHint = require("gulp-lesshint");
-var htmlHint = require("gulp-htmlhint");
-var cleanCSS = require("gulp-clean-css");
-var postCSS = require("gulp-postcss");
-var autoprefixer = require("autoprefixer");
-var mocha = require("gulp-mocha");
-var istanbul = require("gulp-istanbul");
-var pump = require("pump");
-var mergeStream = require("merge-stream");
-var through = require("through2");
-var utilities = require("extra-utilities");
-var changeCase = require("change-case");
-var path = require("path-extra");
-var PluginError = require("plugin-error");
+const gulp = require("gulp");
+const rename = require("gulp-rename");
+const filter = require("gulp-filter");
+const concat = require("gulp-concat");
+const stripComments = require("gulp-strip-comments");
+const sourcemaps = require("gulp-sourcemaps");
+const babel = require("gulp-babel");
+const uglifyJS = require("uglify-js");
+const uglifyComposer = require("gulp-uglify/composer");
+const jsdoc = require("gulp-jsdoc3");
+const sass = require("gulp-sass");
+const sassLint = require("gulp-sass-lint");
+const less = require("gulp-less");
+const lessHint = require("gulp-lesshint");
+const htmlHint = require("gulp-htmlhint");
+const cleanCSS = require("gulp-clean-css");
+const postCSS = require("gulp-postcss");
+const autoprefixer = require("autoprefixer");
+const pump = require("pump");
+const isValidGlob = require("is-valid-glob");
+const mergeStream = require("merge-stream");
+const through = require("through2");
+const fancyLog = require("fancy-log");
+const utilities = require("extra-utilities");
+const changeCase = require("change-case-bundled");
+const path = require("path-extra");
+const colors = require("colors");
+const PluginError = require("plugin-error");
 
-var fabricator = { };
+const fabricator = { };
 
-fabricator.setup = function(options) {
+fabricator.log = function logDebug(message) {
+	return function() {
+		fancyLog(message);
+
+		return through.obj();
+	}();
+};
+
+fabricator.log.info = function logWarning(message) {
+	return function() {
+		fancyLog.error(colors.brightBlue("INFO:", message));
+
+		return through.obj();
+	}();
+};
+
+fabricator.log.warn = function logWarning(message) {
+	return function() {
+		fancyLog.error(colors.brightYellow("WARNING:", message));
+
+		return through.obj();
+	}();
+};
+
+fabricator.log.error = function logError(message) {
+	return function() {
+		fancyLog.error(colors.red("ERROR:", message));
+
+		return through.obj();
+	}();
+};
+
+fabricator.globSource = function globSource(glob, options) {
+	return gulp.src(isValidGlob(glob) ? glob : " ", utilities.merge({ allowEmpty: true }, options));
+};
+
+fabricator.noop = function noop() {
+	return through.obj();
+};
+
+fabricator.noopTask = function noopTask(callback) {
+	return callback();
+};
+
+function tasksOrNoop(tasks, executionType) {
+	if(executionType !== "series" && executionType !== "parallel") {
+		throw new Error("Invalid execution type, expected 'series' or 'parallel'.");
+	}
+
+	if(utilities.isNonEmptyString(tasks)) {
+		tasks = [tasks];
+	}
+
+	return utilities.isEmptyArray(tasks) ? fabricator.noopTask : gulp[executionType](...tasks);
+}
+
+fabricator.seriesTasks = function seriesTasks(tasks) {
+	return tasksOrNoop(tasks, "series");
+};
+
+fabricator.parallelTasks = function parallelTasks(callback) {
+	return tasksOrNoop(tasks, "parallel");
+};
+
+fabricator.setup = function setup(options) {
 	options = fabricator.formatOptions(options);
 
 	fabricator.config = options;
@@ -45,11 +108,10 @@ fabricator.setup = function(options) {
 		return (utilities.isEmptyString(options.namespace) ? "" : options.namespace + ":") + value.trim().replace(/^[:]+/, "");
 	}
 
-	var tasks = {
+	const tasks = {
 		build: [],
 		lint: [],
-		test: [],
-		coverage: [],
+		docs: [],
 		watch: [],
 		default: []
 	};
@@ -58,80 +120,61 @@ fabricator.setup = function(options) {
 		if(options.build.enabled) {
 			gulp.task(namespace("build:js"), function(callback) {
 				pump([
-					mergeStream(
-						gulp.src(options.js.source),
-						options.build.transformation === "angular" && options.html.angular.cacheTemplates
-							? gulp.src(options.html.source)
-								.pipe(options.build.stripComments.enabled && options.html.stripComments.enabled
-									? stripComments(options.html.stripComments.options)
-									: fabricator.noop())
-								.pipe(fabricator.transformation.trimWhitespace(true))
-								.pipe(angularTemplateCache({
-									module: changeCase.param(options.name) + ".templates",
-									standalone: true,
-									root: options.html.angular.templateRoot,
-									transformUrl: function(value) {
-										return utilities.isEmptyString(value) ? value : value.replace(new RegExp("^(.*" + options.html.angular.templateRoot + "([/\\]))", "i"), changeCase.param(options.name) + "$2");
-									}
-								}))
-							: gulp.src([]))
-					.pipe(options.build.transformation === "angular"
-						? fabricator.transform({ transformation: "function" })
-						: fabricator.noop())
+					fabricator.globSource(options.js.source).on("error", fancyLog.error)
 					.pipe(options.build.bundle
-						? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js")
+						? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js").on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.type === "module"
 						? fabricator.transform({
 							transformation: options.build.transformation,
 							name: options.build.exportName
-						})
+						}).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.build.stripComments.enabled && options.js.stripComments.enabled
-						? stripComments(options.js.stripComments.options)
+						? stripComments(options.js.stripComments.options).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
-						? sourcemaps.init()
+						? sourcemaps.init().on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.js.babel.enabled
 						? babel({
 							presets: options.js.babel.presets
-						})
+						}).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
 						? sourcemaps.write(options.js.sourcemaps.embed
 							? undefined
-							: options.js.sourcemaps.destination)
+							: options.js.sourcemaps.destination).on("error", fancyLog.error)
 						: fabricator.noop())
-					.pipe(gulp.dest(options.js.destination))
+					.pipe(gulp.dest(options.js.destination).on("error", fancyLog.error))
 					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
 						? filter(function(file) {
-							var fileName = utilities.getFileName(file.path);
+							const fileName = utilities.getFileName(file.path);
 
 							if(utilities.isNonEmptyString(fileName) && fileName.indexOf(".map") !== -1) {
 								return false;
 							}
 
 							return true;
-						})
+						}).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.js.minify
-						? rename({ extname: ".min.js" })
+						? rename({ extname: ".min.js" }).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.js.minify && options.js.sourcemaps.enabled && options.js.sourcemaps.postMinify
-						? sourcemaps.init()
+						? sourcemaps.init().on("error", fancyLog.error)
 						: fabricator.noop()),
 					options.js.minify
-						? uglifyComposer(uglifyJS, console)({ mangle: false })
+						? uglifyComposer(uglifyJS, console)({ mangle: false }).on("error", fancyLog.error)
 						: fabricator.noop(),
 					fabricator.noop()
 					.pipe(options.js.minify && options.js.sourcemaps.enabled && options.js.sourcemaps.postMinify
 						? sourcemaps.write(options.js.sourcemaps.embed
 							? undefined
-							: options.js.sourcemaps.destination)
+							: options.js.sourcemaps.destination).on("error", fancyLog.error)
 						: fabricator.noop()),
 					options.js.minify
-						? gulp.dest(options.js.destination)
+						? gulp.dest(options.js.destination).on("error", fancyLog.error)
 						: fabricator.noop()
 				], callback);
 			});
@@ -140,20 +183,29 @@ fabricator.setup = function(options) {
 		}
 
 		if(options.lint.enabled && options.js.lint.enabled) {
-			gulp.task(namespace("lint:js"), function() {
-				gulp.src(options.js.source)
-					.pipe(jscs({ config: options.js.lint.options }))
-					.pipe(jscs.reporter());
+			gulp.task(namespace("lint:js"), function(callback) {
+				fancyLog.warn("WARNING: JavaScript linting is not currently supported!".brightYellow);
+
+				return callback();
 			});
 
 			tasks.lint.push(namespace("lint:js"));
 		}
 
+		if(options.js.docs.enabled) {
+			gulp.task(namespace("docs:js"), function(callback) {
+				fabricator.globSource(options.js.source, { read: false }).on("error", fancyLog.error)
+					.pipe(jsdoc(utilities.merge(options.js.docs.config, { opts: { destination: options.js.docs.destination } }), callback).on("error", fancyLog.error));
+			});
+
+			tasks.docs.push(namespace("docs:js"));
+		}
+
 		if(options.lint.enabled && options.html.lint.enabled) {
 			gulp.task(namespace("lint:html"), function() {
-				gulp.src(options.html.source)
-					.pipe(htmlHint(options.html.lint.options))
-					.pipe(htmlHint.reporter());
+				fabricator.globSource(options.html.source).on("error", fancyLog.error)
+					.pipe(htmlHint(options.html.lint.options).on("error", fancyLog.error))
+					.pipe(htmlHint.reporter().on("error", fancyLog.error));
 			});
 
 			tasks.lint.push(namespace("lint:html"));
@@ -164,37 +216,37 @@ fabricator.setup = function(options) {
 		if(options.build.enabled) {
 			gulp.task(namespace("build:css"), function(callback) {
 				mergeStream(
-					gulp.src(options.css.source),
+					fabricator.globSource(options.css.source).on("error", fancyLog.error),
 					options.build.tasks.includes("scss")
-						? gulp.src(options.scss.source)
+						? gulp.src(options.scss.source).on("error", fancyLog.error)
 							.pipe(options.build.stripComments.enabled && options.scss.stripComments.enabled
-								? stripComments(options.scss.stripComments.options)
+								? stripComments(options.scss.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
 							.pipe(sass().on("error", sass.logError))
-						: gulp.src([]),
+						: fabricator.globSource([]),
 					options.build.tasks.includes("less")
-						? gulp.src(options.less.source).on("error", function() { })
+						? fabricator.globSource(options.less.source).on("error", fancyLog.error)
 							.pipe(options.build.stripComments.enabled && options.less.stripComments.enabled
-								? stripComments(options.less.stripComments.options)
+								? stripComments(options.less.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
 							.pipe(less())
-						: gulp.src([])).on("error", function() { })
-					.pipe(rename({ prefix: utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix }))
+						: fabricator.globSource([]).on("error", fancyLog.error))
+					.pipe(rename({ prefix: utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix }).on("error", fancyLog.error))
 					.pipe(options.css.autoprefixer.enabled
-						? postCSS([autoprefixer(options.css.autoprefixer.options)])
+						? postCSS([autoprefixer(options.css.autoprefixer.options)]).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.build.stripComments.enabled && options.css.stripComments.enabled
-						? stripComments(options.css.stripComments.options)
+						? stripComments(options.css.stripComments.options).on("error", fancyLog.error)
 						: fabricator.noop())
-					.pipe(gulp.dest(options.css.destination))
+					.pipe(gulp.dest(options.css.destination).on("error", fancyLog.error))
 					.pipe(options.css.minify
-						? cleanCSS()
-						: fabricator.noop())
-					.pipe(options.css.minify
-						? rename({ extname: ".min.css" })
+						? cleanCSS().on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.css.minify
-						? gulp.dest(options.css.destination)
+						? rename({ extname: ".min.css" }).on("error", fancyLog.error)
+						: fabricator.noop())
+					.pipe(options.css.minify
+						? gulp.dest(options.css.destination).on("error", fancyLog.error)
 						: fabricator.noop())
 					.on("end", callback);
 			});
@@ -204,7 +256,7 @@ fabricator.setup = function(options) {
 
 		if(options.lint.enabled && options.scss.lint.enabled) {
 			gulp.task(namespace("lint:scss"), function() {
-				gulp.src(options.scss.source)
+				fabricator.globSource(options.scss.source).on("error", fancyLog.error)
 					.pipe(sassLint(options.scss.lint))
 					.pipe(sassLint.format())
 					.pipe(sassLint.failOnError());
@@ -215,7 +267,7 @@ fabricator.setup = function(options) {
 
 		if(options.lint.enabled && options.less.lint.enabled) {
 			gulp.task(namespace("lint:less"), function() {
-				gulp.src(options.less.source)
+				fabricator.globSource(options.less.source).on("error", fancyLog.error)
 					.pipe(lessHint(options.less.lint.options))
 					.pipe(lessHint.reporter(options.less.lint.reporter))
 					.pipe(lessHint.failOnError());
@@ -225,53 +277,24 @@ fabricator.setup = function(options) {
 		}
 	}
 
-	if(options.test.enabled) {
-		gulp.task(namespace("test:main"), function() {
-			gulp.src(options.test.source)
-				.pipe(mocha({ reporter: options.test.reporter }));
-		});
-
-		tasks.test.push(namespace("test:main"));
-	}
-
-	if(options.coverage.enabled) {
-		gulp.task(namespace("coverage:before"), function() {
-			gulp.src(options.test.target)
-				.pipe(istanbul({ includeUntested: true }))
-				.pipe(istanbul.hookRequire());
-		});
-
-		tasks.coverage.push(namespace("coverage:before"));
-
-		gulp.task(namespace("coverage:main"), function() {
-			gulp.src(options.test.source)
-				.pipe(mocha())
-				.pipe(istanbul.writeReports());
-		});
-
-		tasks.coverage.push(namespace("coverage:main"));
-	}
-
-	gulp.task(namespace("watch:main"), function() {
-		if(options.build.tasks.includes("js")) {
-			gulp.watch(options.js.source, [namespace("build:js")]);
-
-			if(options.build.transformation === "angular" && options.html.angular.cacheTemplates) {
-				gulp.watch(options.html.source, [namespace("build:js")]);
-			}
+	gulp.task(namespace("watch:main"), function(callback) {
+		if(options.build.tasks.includes("js") && options.build.enabled) {
+			gulp.watch(options.js.source, fabricator.seriesTasks(namespace("build:js")));
 		}
 
-		if(options.build.tasks.includes("scss")) {
-			gulp.watch(options.scss.source, [namespace("build:css")]);
+		if(options.build.tasks.includes("scss") && options.build.enabled) {
+			gulp.watch(options.scss.source, fabricator.seriesTasks(namespace("build:css")));
 		}
 
-		if(options.build.tasks.includes("less")) {
-			gulp.watch(options.less.source, [namespace("build:css")]);
+		if(options.build.tasks.includes("less") && options.build.enabled) {
+			gulp.watch(options.less.source, fabricator.seriesTasks(namespace("build:css")));
 		}
 
-		if(options.build.tasks.includes("css")) {
-			gulp.watch(options.css.source, [namespace("build:css")]);
+		if(options.build.tasks.includes("css") && options.build.enabled) {
+			gulp.watch(options.css.source, fabricator.seriesTasks(namespace("build:css")));
 		}
+
+		return callback();
 	});
 
 	tasks.watch.push(namespace("watch:main"));
@@ -280,25 +303,24 @@ fabricator.setup = function(options) {
 		tasks.default.push("watch");
 	}
 
-	tasks.default.push("build", "lint");
+	tasks.default.push(namespace("build"), namespace("lint"), namespace("docs"));
 
-	var additionalTaskTypes = Object.keys(options.additionalTasks);
+	const additionalTaskTypes = Object.keys(options.additionalTasks);
 
-	for(var i = 0; i < additionalTaskTypes.length; i++) {
-		var additionalTaskType = additionalTaskTypes[i];
+	for(let i = 0; i < additionalTaskTypes.length; i++) {
+		const additionalTaskType = additionalTaskTypes[i];
 
-		Array.prototype.push.apply(tasks[additionalTaskType], options.additionalTasks[additionalTaskType]);
+		tasks[additionalTaskType].push(...options.additionalTasks[additionalTaskType]);
 	}
 
-	gulp.task(namespace("build"), utilities.isEmptyArray(tasks.build) ? [] : sequence.apply(this, tasks.build));
-	gulp.task(namespace("lint"), utilities.isEmptyArray(tasks.lint) ? [] : sequence.apply(this, tasks.lint));
-	gulp.task(namespace("test"), utilities.isEmptyArray(tasks.test) ? [] : sequence.apply(this, tasks.test));
-	gulp.task(namespace("coverage"), utilities.isEmptyArray(tasks.coverage) ? [] : sequence.apply(this, tasks.coverage));
-	gulp.task(namespace("watch"), utilities.isEmptyArray(tasks.watch) ? [] : sequence.apply(this, tasks.watch));
-	gulp.task(namespace("default"), utilities.isEmptyArray(tasks.default) ? [] : sequence.apply(this, tasks.default));
+	gulp.task(namespace("build"), fabricator.seriesTasks(tasks.build));
+	gulp.task(namespace("lint"), fabricator.seriesTasks(tasks.lint));
+	gulp.task(namespace("docs"), fabricator.seriesTasks(tasks.docs));
+	gulp.task(namespace("watch"), fabricator.seriesTasks(tasks.watch));
+	gulp.task(namespace("default"), fabricator.seriesTasks(tasks.default));
 };
 
-fabricator.formatOptions = function(options) {
+fabricator.formatOptions = function formatOptions(options) {
 	return utilities.formatValue(
 		options,
 		{
@@ -310,40 +332,32 @@ fabricator.formatOptions = function(options) {
 			required: true,
 			formatter: function(value, format, options) {
 				if(utilities.isEmptyString(value.build.fileName)) {
-					value.build.fileName = changeCase.param(value.name);
+					value.build.fileName = changeCase.paramCase(value.name);
 				}
 
 				if(utilities.isEmptyString(value.build.exportName)) {
-					value.build.exportName = changeCase.camel(value.name);
+					value.build.exportName = changeCase.camelCase(value.name);
 				}
 
-				if(!Array.isArray(value.test.target)) {
-					value.test.target = [path.join(value.js.destination, "*.js"), "!" + path.join(value.js.destination, "*.min.js")];
-				}
+				for(let fileType in ["js", "html", "scss", "less", "css"]) {
+					const config = value[fileType];
 
-				if(value.build.prefix === undefined && value.build.transformation === "angular") {
-					value.build.prefix = "angular-";
-				}
-
-				for(var fileType in ["js", "html", "scss", "less", "css"]) {
-					var config = value[fileType];
-
-					for(var locationType in ["source, destination"]) {
-						var baseLocation = value.base[locationType];
+					for(let locationType in ["source, destination"]) {
+						const baseLocation = value.base[locationType];
 
 						if(utilities.isEmptyString(baseLocation)) {
 							continue;
 						}
 
-						var location = config[locationType];
+						const location = config[locationType];
 
 						if(utilities.isNonEmptyString(location)) {
 							config[locationType] = path.join(baseLocation, location);
 						}
 						else if(utilities.isNonEmptyArray()) {
-							var formattedLocation = [];
+							const formattedLocation = [];
 
-							for(var i = 0; i < location.length; i++) {
+							for(let i = 0; i < location.length; i++) {
 								formattedLocation.push(path.join(baseLocation, location[i]));
 							}
 
@@ -491,955 +505,109 @@ fabricator.formatOptions = function(options) {
 								enabled: {
 									type: "boolean",
 									default: false
+								}
+							}
+						},
+						docs: {
+							type: "object",
+							strict: true,
+							autopopulate: true,
+							removeExtra: true,
+							format: {
+								enabled: {
+									type: "boolean",
+									default: false
 								},
-								options: {
+								destination: {
+									type: "string",
+									trim: true,
+									nonEmpty: true,
+									case: "lower",
+									default: "docs/"
+								},
+								config: {
 									type: "object",
 									strict: true,
 									autopopulate: true,
 									format: {
-										disallowDanglingUnderscores: {
-											type: "boolean",
-											default: true
+										tags: {
+											type: "object",
+											strict: true,
+											autopopulate: true,
+											format: {
+												allowUnknownTags: {
+													type: "boolean",
+													default: true
+												}
+											}
 										},
-										disallowEmptyBlocks: {
-											type: "boolean",
-											default: true
-										},
-										disallowMultipleLineBreaks: {
-											type: "boolean",
-											default: true
-										},
-										disallowMultipleLineStrings: {
-											type: "boolean",
-											default: true
-										},
-										disallowMultipleSpaces: {
-											type: "boolean",
-											default: true
-										},
-										disallowMultipleVarDecl: {
-											type: "boolean",
-											default: true
-										},
-										disallowNewlineBeforeBlockStatements: {
-											type: "boolean",
-											default: true
-										},
-										disallowPaddingNewlinesInBlocks: {
-											type: "boolean",
-											default: true
-										},
-										disallowQuotedKeysInObjects: {
-											type: "boolean",
-											default: true
-										},
-										disallowSpaceAfterKeywords: {
+										plugins: {
 											type: "array",
-											default: [
-												"if",
-												"for",
-												"while",
-												"switch",
-												"catch"
-											],
+											autopopulate: true,
 											format: {
 												type: "string",
+												trim: true,
+												nonEmpty: true,
 												case: "lower",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"else",
-														"for",
-														"while",
-														"do",
-														"switch",
-														"try",
-														"catch"
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS disallowSpaceAfterKeywords keyword: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
+												default: "cerulean"
+											},
+											default: ["plugins/markdown"]
 										},
-										disallowSpaceAfterObjectKeys: {
-											type: "boolean",
-											default: true
-										},
-										disallowSpaceAfterPrefixUnaryOperators: {
-											type: "array",
-											default: [
-												"++",
-												"--",
-												"~",
-												"!"
-											],
-											format: {
-												type: "string",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"++",
-														"--",
-														"+",
-														"-",
-														"~",
-														"!"
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS disallowSpaceAfterPrefixUnaryOperators operator: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										disallowSpaceBeforeBinaryOperators: {
-											type: "array",
-											default: [
-												","
-											],
-											format: {
-												type: "string",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"=",
-														",",
-														"+",
-														"-",
-														"/",
-														"*",
-														"==",
-														"===",
-														"!=",
-														"!=="
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS disallowSpaceBeforeBinaryOperators operator: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										disallowSpaceBeforeComma: {
-											type: "boolean",
-											default: true
-										},
-										disallowSpaceBeforePostfixUnaryOperators: {
-											type: "array",
-											default: [
-												"++",
-												"--"
-											],
-											format: {
-												type: "string",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"++",
-														"--"
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS disallowSpaceBeforePostfixUnaryOperators operator: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										disallowSpaceBeforeSemicolon: {
-											type: "boolean",
-											default: true
-										},
-										disallowSpacesInCallExpression: {
-											type: "boolean",
-											default: true
-										},
-										disallowSpacesInFunctionDeclaration: {
+										templates: {
 											type: "object",
 											strict: true,
 											autopopulate: true,
-											removeExtra: true,
 											format: {
-												beforeOpeningRoundBrace: {
+												cleverLinks: {
 													type: "boolean",
-													default: true
+													default: false
 												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean"
-												}
-											}
-										},
-										disallowSpacesInFunctionExpression: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												beforeOpeningRoundBrace: {
+												monospaceLinks: {
 													type: "boolean",
-													default: true
+													default: false
 												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean"
-												}
-											}
-										},
-										disallowSpacesInNamedFunctionExpression: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												beforeOpeningRoundBrace: {
-													type: "boolean",
-													default: true
-												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean"
-												}
-											}
-										},
-										disallowSpacesInsideBrackets: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												allExcept: {
-													type: "array",
-													default: [
-														"[",
-														"]",
-														"{",
-														"}"
-													],
+												default: {
+													type: "object",
+													strict: true,
+													autopopulate: true,
 													format: {
-														type: "string",
-														trim: true,
-														nonEmpty: true,
-														validator: function(value, format, options) {
-															var validValues = [
-																"[",
-																"]",
-																"{",
-																"}"
-															];
-
-															var validValue = false;
-
-															for(var i = 0; i < validValues.length; i++) {
-																if(value === validValues[i]) {
-																	validValue = true;
-																	break;
-																}
-															}
-
-															if(!validValue) {
-																throw new Error("Invalid JSCS disallowSpacesInsideBrackets allExcept bracket type: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-															}
-
-															return true;
+														outputSourceFiles: {
+															type: "boolean",
+															default: true
 														}
 													}
-												}
-											}
-										},
-										disallowSpacesInsideParentheses: {
-											type: "boolean",
-											default: true
-										},
-										disallowSpacesInsideParenthesizedExpression: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												allExcept: {
-													type: "array",
-													default: [
-														"(",
-														")"
-													],
-													format: {
-														type: "string",
-														case: "lower",
-														trim: true,
-														nonEmpty: true,
-														validator: function(value, format, options) {
-															var validValues = [
-																"(",
-																")",
-																"{",
-																"}",
-																"function"
-															];
-
-															var validValue = false;
-
-															for(var i = 0; i < validValues.length; i++) {
-																if(value === validValues[i]) {
-																	validValue = true;
-																	break;
-																}
-															}
-
-															if(!validValue) {
-																throw new Error("Invalid JSCS disallowSpacesInsideParenthesizedExpression allExcept value: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-															}
-
-															return true;
-														}
-													}
-												}
-											}
-										},
-										disallowTrailingComma: {
-											type: "boolean",
-											default: true
-										},
-										disallowTrailingWhitespace: {
-											type: "boolean",
-											default: true
-										},
-										disallowUnusedVariables: {
-											type: "boolean",
-											default: true
-										},
-										disallowYodaConditions: {
-											type: "boolean",
-											default: true
-										},
-										requireBlocksOnNewline: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												includeComments: {
-													type: "boolean",
-													default: true
 												},
-												minLines: {
-													type: "integer",
-													default: 1,
-													validator: function(value, format, options) {
-														return value >= 0;
-													}
-												}
-											}
-										},
-										requireCamelCaseOrUpperCaseIdentifiers: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												ignoreProperties: {
-													type: "boolean",
-													default: true
-												}
-											}
-										},
-										requireCommaBeforeLineBreak: {
-											type: "boolean",
-											default: true
-										},
-										requireCurlyBraces: {
-											type: "boolean",
-											default: true
-										},
-										requireKeywordsOnNewLine: {
-											type: "array",
-											default: [
-												"else",
-												"catch"
-											],
-											format: {
-												type: "string",
-												case: "lower",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"else",
-														"catch"
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS requireKeywordsOnNewLine value: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										requireLineBreakAfterVariableAssignment: {
-											type: "boolean",
-											default: true
-										},
-										requireLineFeedAtFileEnd: {
-											type: "boolean",
-											default: true
-										},
-										requirePaddingNewLinesAfterUseStrict: {
-											type: "boolean",
-											default: true
-										},
-										requirePaddingNewLinesBeforeExport: {
-											type: "boolean",
-											default: true
-										},
-										requirePaddingNewlinesBeforeKeywords: {
-											type: "array",
-											default: [
-												"do",
-												"for",
-												"if",
-												"try"
-											],
-											format: {
-												type: "string",
-												case: "lower",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"do",
-														"for",
-														"else",
-														"if",
-														"try"
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS requirePaddingNewlinesBeforeKeywords value: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										requireSemicolons: {
-											type: "boolean",
-											default: true
-										},
-										requireSpaceAfterBinaryOperators: {
-											type: "array",
-											default: [
-												"=",
-												",",
-												"+",
-												"-",
-												"/",
-												"*",
-												"==",
-												"===",
-												"!=",
-												"!=="
-											],
-											format: {
-												type: "string",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"=",
-														",",
-														"+",
-														"-",
-														"/",
-														"*",
-														"==",
-														"===",
-														"!=",
-														"!=="
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS requireSpaceAfterBinaryOperators operator: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										requireSpaceAfterComma: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												allExcept: {
-													type: "array",
-													default: [
-														"trailing"
-													],
-													format: {
-														type: "string",
-														case: "lower",
-														trim: true,
-														nonEmpty: true,
-														validator: function(value, format, options) {
-															var validValues = [
-																"trailing"
-															];
-
-															var validValue = false;
-
-															for(var i = 0; i < validValues.length; i++) {
-																if(value === validValues[i]) {
-																	validValue = true;
-																	break;
-																}
-															}
-
-															if(!validValue) {
-																throw new Error("Invalid JSCS requireSpaceAfterComma allExcept value: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-															}
-
-															return true;
-														}
-													}
-												}
-											}
-										},
-										requireSpaceAfterKeywords: {
-											type: "array",
-											default: [
-												"do",
-												"else",
-												"try",
-												"return",
-												"typeof"
-											],
-											format: {
-												type: "string",
-												case: "lower",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"do",
-														"else",
-														"try",
-														"return",
-														"typeof"
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS requireSpaceAfterKeywords keyword: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										requireSpaceAfterLineComment: {
-											type: "boolean",
-											default: true
-										},
-										requireSpaceBeforeBinaryOperators: {
-											type: "array",
-											default: [
-												"=",
-												"+",
-												"-",
-												"/",
-												"*",
-												"==",
-												"===",
-												"!=",
-												"!=="
-											],
-											format: {
-												type: "string",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"=",
-														"+",
-														"-",
-														"/",
-														"*",
-														"==",
-														"===",
-														"!=",
-														"!=="
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS requireSpaceAfterKeywords keyword: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										requireSpaceBeforeBlockStatements: {
-											type: "integer",
-											default: 1,
-											validator: function(value, format, options) {
-												return value >= 0;
-											}
-										},
-										requireSpaceBeforeKeywords: {
-											type: "array",
-											default: [
-												"while"
-											],
-											format: {
-												type: "string",
-												case: "lower",
-												trim: true,
-												nonEmpty: true,
-												validator: function(value, format, options) {
-													var validValues = [
-														"else",
-														"while",
-														"catch"
-													];
-
-													var validValue = false;
-
-													for(var i = 0; i < validValues.length; i++) {
-														if(value === validValues[i]) {
-															validValue = true;
-															break;
-														}
-													}
-
-													if(!validValue) {
-														throw new Error("Invalid JSCS requireSpaceBeforeKeywords keyword: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-													}
-
-													return true;
-												}
-											}
-										},
-										requireSpaceBeforeObjectValues: {
-											type: "boolean",
-											default: true
-										},
-										requireSpaceBetweenArguments: {
-											type: "boolean",
-											default: true
-										},
-										requireSpacesInAnonymousFunctionExpression: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												beforeOpeningRoundBrace: {
-													type: "boolean"
-												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean",
-													default: true
-												}
-											}
-										},
-										requireSpacesInConditionalExpression: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												afterTest: {
-													type: "boolean",
-													default: true
-												},
-												beforeConsequent: {
-													type: "boolean",
-													default: true
-												},
-												afterConsequent: {
-													type: "boolean",
-													default: true
-												},
-												beforeAlternate: {
-													type: "boolean",
-													default: true
-												}
-											}
-										},
-										requireSpacesInFunctionDeclaration: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												beforeOpeningRoundBrace: {
-													type: "boolean"
-												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean",
-													default: true
-												}
-											}
-										},
-										requireSpacesInFunctionExpression: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												beforeOpeningRoundBrace: {
-													type: "boolean"
-												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean",
-													default: true
-												}
-											}
-										},
-										requireSpacesInFunction: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												beforeOpeningRoundBrace: {
-													type: "boolean"
-												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean",
-													default: true
-												}
-											}
-										},
-										requireSpacesInNamedFunctionExpression: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												beforeOpeningRoundBrace: {
-													type: "boolean"
-												},
-												beforeOpeningCurlyBrace: {
-													type: "boolean",
-													default: true
-												}
-											}
-										},
-										requireSpacesInsideObjectBrackets: {
-											type: "string",
-											case: "camel",
-											trim: true,
-											nonEmpty: true,
-											default: "all",
-											validator: function(value, format, options) {
-												if(value !== "all" && value !== "allButNested") {
-													throw new Error("Invalid JSCS requireSpacesInsideObjectBrackets value: \"" + value + "\" - expected all or allButNested.");
-												}
-
-												return true;
-											}
-										},
-										safeContextKeyword: {
-											type: "array",
-											default: [
-												"self"
-											],
-											format: {
-												type: "string",
-												case: "lower",
-												trim: true,
-												nonEmpty: true
-											}
-										},
-										validateIndentation: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												value: {
+												path: {
 													type: "string",
 													trim: true,
 													nonEmpty: true,
-													default: "\t"
+													case: "lower",
+													default: "ink-docstrap"
 												},
-												allExcept: {
-													type: "array",
-													nonEmpty: true,
-													default: [
-														"comments",
-														"emptyLines"
-													],
-													format: {
-														type: "string",
-														case: "camel",
-														trim: true,
-														nonEmpty: true,
-														validator: function(value, format, options) {
-															var validValues = [
-																"comments",
-																"emptyLines"
-															];
-
-															var validValue = false;
-
-															for(var i = 0; i < validValues.length; i++) {
-																if(value === validValues[i]) {
-																	validValue = true;
-																	break;
-																}
-															}
-
-															if(!validValue) {
-																throw new Error("Invalid JSCS validateIndentation value: \"" + value + "\" - expected one of: " + validValues.join(", ") + ".");
-															}
-
-															return true;
-														}
-													}
-												}
-											}
-										},
-										validateLineBreaks: {
-											type: "object",
-											strict: true,
-											autopopulate: true,
-											removeExtra: true,
-											format: {
-												character: {
+												theme: {
 													type: "string",
-													case: "upper",
 													trim: true,
 													nonEmpty: true,
-													default: "LF",
-													validator: function(value, format, options) {
-														if(value !== "CR" && value !== "LF" && value !== "CRLF") {
-															throw new Error("Invalid JSCS validateLineBreaks character value: \"" + value + "\" - expected CR, LF or CRLF.");
-														}
-
-														return true;
-													}
+													case: "lower",
+													default: "cerulean"
 												},
-												reportOncePerFile: {
+												navType: {
+													type: "string",
+													trim: true,
+													nonEmpty: true,
+													case: "lower",
+													default: "vertical"
+												},
+												linenums: {
 													type: "boolean",
 													default: true
+												},
+												dateFormat: {
+													type: "string",
+													trim: true,
+													nonEmpty: true,
+													default: "MMMM Do YYYY, h:mm:ss a"
 												}
-											}
-										},
-										validateNewlineAfterArrayElements: {
-											type: "boolean",
-											default: true
-										},
-										validateParameterSeparator: {
-											type: "string",
-											trim: true,
-											nonEmpty: true,
-											default: ", "
-										},
-										validateQuoteMarks: {
-											type: "string",
-											trim: true,
-											nonEmpty: true,
-											default: "\"",
-											validator: function(value, format, options) {
-												if(value !== "\"" && value !== "'") {
-													throw new Error("Invalid JSCS validateQuoteMarks value: \"" + value + "\" - expected \" or '.");
-												}
-
-												return true;
 											}
 										}
 									}
@@ -1461,24 +629,6 @@ fabricator.formatOptions = function(options) {
 								type: "string",
 								trim: true,
 								nonEmpty: true
-							}
-						},
-						angular: {
-							type: "object",
-							strict: true,
-							autopopulate: true,
-							removeExtra: true,
-							format: {
-								cacheTemplates: {
-									type: "boolean",
-									default: true
-								},
-								templateRoot: {
-									type: "string",
-									trim: true,
-									nonEmpty: true,
-									default: "src"
-								}
 							}
 						},
 						stripComments: {
@@ -1516,7 +666,7 @@ fabricator.formatOptions = function(options) {
 							format: {
 								enabled: {
 									type: "boolean",
-									default: true
+									default: false
 								},
 								options: {
 									type: "object",
@@ -2273,21 +1423,14 @@ fabricator.formatOptions = function(options) {
 							case: "lower",
 							trim: true,
 							nonEmpty: true,
-							default: "node",
+							default: "umd",
 							formatter: function(value, format, options) {
 								if(utilities.isEmptyString(value) || value === "none" || value === "disabled") {
 									return null;
 								}
 
-								if(value === "nodejs" || value === "node.js") {
-									return "node";
-								}
-								else if(value === "angularjs") {
-									return "angular";
-								}
-
-								if(value !== "node" && value !== "angular") {
-									throw new Error("Invalid or unsupported module transformation - expected Node.js, NodeJS, Node, AngularJS or Angular, received: \"" + value + "\".");
+								if(value !== "umd") {
+									throw new Error("Invalid or unsupported module transformation - expected UMD, received: \"" + value + "\".");
 								}
 
 								return value;
@@ -2358,53 +1501,6 @@ fabricator.formatOptions = function(options) {
 						}
 					}
 				},
-				test: {
-					type: "object",
-					strict: true,
-					autopopulate: true,
-					removeExtra: true,
-					format: {
-						enabled: {
-							type: "boolean",
-							default: true
-						},
-						source: {
-							type: "array",
-							default: ["test/*.js"],
-							format: {
-								type: "string",
-								trim: true,
-								nonEmpty: true
-							}
-						},
-						target: {
-							type: "array",
-							format: {
-								type: "string",
-								trim: true,
-								nonEmpty: true
-							}
-						},
-						reporter: {
-							type: "string",
-							trim: true,
-							nonEmpty: true,
-							default: "spec"
-						}
-					}
-				},
-				coverage: {
-					type: "object",
-					strict: true,
-					autopopulate: true,
-					removeExtra: true,
-					format: {
-						enabled: {
-							type: "boolean",
-							default: true
-						}
-					}
-				},
 				additionalTasks: {
 					type: "object",
 					strict: true,
@@ -2421,24 +1517,6 @@ fabricator.formatOptions = function(options) {
 							}
 						},
 						lint: {
-							type: "array",
-							default: [],
-							format: {
-								type: "string",
-								trim: true,
-								nonEmpty: true
-							}
-						},
-						test: {
-							type: "array",
-							default: [],
-							format: {
-								type: "string",
-								trim: true,
-								nonEmpty: true
-							}
-						},
-						coverage: {
 							type: "array",
 							default: [],
 							format: {
@@ -2476,10 +1554,6 @@ fabricator.formatOptions = function(options) {
 	);
 };
 
-fabricator.noop = function() {
-	return through.obj();
-};
-
 function getContent(buffer) {
 	if(utilities.isObject(buffer) && utilities.isValid(buffer.contents)) {
 		return buffer.contents.toString();
@@ -2507,7 +1581,7 @@ function updateContent(buffer, content, encoding) {
 	return content;
 }
 
-var format = {
+const format = {
 	transformation: {
 		type: "object",
 		strict: true,
@@ -2558,7 +1632,7 @@ var format = {
 
 fabricator.transformation = { };
 
-fabricator.transformation.indentText = function(buffer, options) {
+fabricator.transformation.indentText = function indentText(buffer, options) {
 	options = utilities.formatValue(
 		options,
 		utilities.merge(
@@ -2591,7 +1665,7 @@ fabricator.transformation.indentText = function(buffer, options) {
 	);
 };
 
-fabricator.transformation.trimWhitespace = function(buffer, options) {
+fabricator.transformation.trimWhitespace = function trimWhitespace(buffer, options) {
 	options = utilities.formatValue(
 		options,
 		utilities.merge(
@@ -2617,7 +1691,7 @@ fabricator.transformation.trimWhitespace = function(buffer, options) {
 	);
 };
 
-fabricator.transformation.function = function(buffer, options) {
+fabricator.transformation.iife = function iife(buffer, options) {
 	options = utilities.formatValue(
 		options,
 		format.transformation,
@@ -2637,7 +1711,7 @@ fabricator.transformation.function = function(buffer, options) {
 	);
 };
 
-fabricator.transformation.node = function(buffer, options) {
+fabricator.transformation.umd = function umd(buffer, options) {
 	options = utilities.formatValue(
 		options,
 		utilities.merge(
@@ -2676,32 +1750,7 @@ fabricator.transformation.node = function(buffer, options) {
 	);
 };
 
-fabricator.transformation.angular = function(buffer, options) {
-	options = utilities.formatValue(
-		options,
-		format.transformation,
-		{
-			throwErrors: true
-		}
-	);
-
-	return updateContent(
-		buffer,
-		"(function(root, factory) {" + options.newLine +
-		options.indentation + "if(typeof define === \"function\" && define.amd) { define([\"angular\"], factory); }" + options.newLine +
-		options.indentation + "else { factory(angular); }" + options.newLine +
-		"}(this, function(angular) {" + options.newLine +
-		options.newLine +
-		options.indentation + "\"use strict\";" + options.newLine +
-		options.newLine +
-		utilities.trimTrailingNewlines(utilities.indentParagraph(getContent(buffer), 1, options.indentation)) + options.newLine +
-		options.newLine +
-		"}));" + options.newLine,
-		options.encoding
-	);
-};
-
-fabricator.transform = function(options) {
+fabricator.transform = function transform(options) {
 	options = utilities.formatValue(
 		options,
 		format.transform,

@@ -1,4 +1,4 @@
-var fabricator = require("./src/fabricator");
+const fabricator = require("./src/fabricator");
 
 fabricator.setup({
 	name: "Gulp Fabricator",

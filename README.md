@@ -11,7 +11,7 @@ A multipurpose extension of gulp that allows for simplified and centralized proc
 ## Usage
 
 ```javascript
-var fabricator = require("gulp-fabricator");
+const fabricator = require("gulp-fabricator");
 
 fabricator.setup({
 	name: "Example Module",

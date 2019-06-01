@@ -1,56 +1,50 @@
 "use strict";
 
-var fabricator = require("../dist/fabricator.js");
-var utilities = require("extra-utilities");
-var chai = require("chai");
-var expect = chai.expect;
+const fabricator = require("../src/fabricator.js");
+const utilities = require("extra-utilities");
+const chai = require("chai");
+const expect = chai.expect;
 
 describe("Gulp Fabricator", function() {
 	describe("setup", function() {
 		it("should be a function", function() {
-			expect(utilities.isFunction(fabricator.setup)).to.equal(true);
+			expect(fabricator.setup).to.be.an.instanceof(Function);
 		});
 	});
 
 	describe("formatOptions", function() {
 		it("should be a function", function() {
-			expect(utilities.isFunction(fabricator.formatOptions)).to.equal(true);
+			expect(fabricator.formatOptions).to.be.an.instanceof(Function);
 		});
 	});
 
 	describe("noop", function() {
 		it("should be a function", function() {
-			expect(utilities.isFunction(fabricator.noop)).to.equal(true);
+			expect(fabricator.noop).to.be.an.instanceof(Function);
 		});
 	});
 
 	describe("transformation", function() {
-		it("should be a strict object", function() {
-			expect(utilities.isObjectStrict(fabricator.transformation)).to.equal(true);
+		it("should be an object", function() {
+			expect(fabricator.transformation).to.be.an.instanceof(Object);
 		});
 
-		describe("function", function() {
+		describe("umd", function() {
 			it("should be a function", function() {
-				expect(utilities.isFunction(fabricator.transformation.function)).to.equal(true);
+				expect(fabricator.transformation.umd).to.be.an.instanceof(Function);
 			});
 		});
 
-		describe("node", function() {
+		describe("iife", function() {
 			it("should be a function", function() {
-				expect(utilities.isFunction(fabricator.transformation.node)).to.equal(true);
-			});
-		});
-
-		describe("angular", function() {
-			it("should be a function", function() {
-				expect(utilities.isFunction(fabricator.transformation.angular)).to.equal(true);
+				expect(fabricator.transformation.iife).to.be.an.instanceof(Function);
 			});
 		});
 	});
 
 	describe("transform", function() {
 		it("should be a function", function() {
-			expect(utilities.isFunction(fabricator.transform)).to.equal(true);
+			expect(fabricator.transform).to.be.an.instanceof(Function);
 		});
 	});
 });
