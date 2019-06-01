@@ -1,36 +1,36 @@
 "use strict";
 
-var gulp = require("gulp");
-var rename = require("gulp-rename");
-var sequence = require("gulp-sequence");
-var filter = require("gulp-filter");
-var concat = require("gulp-concat");
-var stripComments = require("gulp-strip-comments");
-var angularTemplateCache = require("gulp-angular-templatecache");
-var sourcemaps = require("gulp-sourcemaps");
-var babel = require("gulp-babel");
-var uglifyJS = require("uglify-js");
-var uglifyComposer = require("gulp-uglify/composer");
-var jscs = require("gulp-jscs");
-var sass = require("gulp-sass");
-var sassLint = require("gulp-sass-lint");
-var less = require("gulp-less");
-var lessHint = require("gulp-lesshint");
-var htmlHint = require("gulp-htmlhint");
-var cleanCSS = require("gulp-clean-css");
-var postCSS = require("gulp-postcss");
-var autoprefixer = require("autoprefixer");
-var mocha = require("gulp-mocha");
-var istanbul = require("gulp-istanbul");
-var pump = require("pump");
-var mergeStream = require("merge-stream");
-var through = require("through2");
-var utilities = require("extra-utilities");
-var changeCase = require("change-case");
-var path = require("path-extra");
-var PluginError = require("plugin-error");
+const gulp = require("gulp");
+const rename = require("gulp-rename");
+const sequence = require("gulp-sequence");
+const filter = require("gulp-filter");
+const concat = require("gulp-concat");
+const stripComments = require("gulp-strip-comments");
+const angularTemplateCache = require("gulp-angular-templatecache");
+const sourcemaps = require("gulp-sourcemaps");
+const babel = require("gulp-babel");
+const uglifyJS = require("uglify-js");
+const uglifyComposer = require("gulp-uglify/composer");
+const jscs = require("gulp-jscs");
+const sass = require("gulp-sass");
+const sassLint = require("gulp-sass-lint");
+const less = require("gulp-less");
+const lessHint = require("gulp-lesshint");
+const htmlHint = require("gulp-htmlhint");
+const cleanCSS = require("gulp-clean-css");
+const postCSS = require("gulp-postcss");
+const autoprefixer = require("autoprefixer");
+const mocha = require("gulp-mocha");
+const istanbul = require("gulp-istanbul");
+const pump = require("pump");
+const mergeStream = require("merge-stream");
+const through = require("through2");
+const utilities = require("extra-utilities");
+const changeCase = require("change-case");
+const path = require("path-extra");
+const PluginError = require("plugin-error");
 
-var fabricator = { };
+let fabricator = { };
 
 fabricator.setup = function(options) {
 	options = fabricator.formatOptions(options);
@@ -45,7 +45,7 @@ fabricator.setup = function(options) {
 		return (utilities.isEmptyString(options.namespace) ? "" : options.namespace + ":") + value.trim().replace(/^[:]+/, "");
 	}
 
-	var tasks = {
+	let tasks = {
 		build: [],
 		lint: [],
 		test: [],
@@ -106,7 +106,7 @@ fabricator.setup = function(options) {
 					.pipe(gulp.dest(options.js.destination))
 					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
 						? filter(function(file) {
-							var fileName = utilities.getFileName(file.path);
+							const fileName = utilities.getFileName(file.path);
 
 							if(utilities.isNonEmptyString(fileName) && fileName.indexOf(".map") !== -1) {
 								return false;
@@ -282,10 +282,10 @@ fabricator.setup = function(options) {
 
 	tasks.default.push("build", "lint");
 
-	var additionalTaskTypes = Object.keys(options.additionalTasks);
+	const additionalTaskTypes = Object.keys(options.additionalTasks);
 
-	for(var i = 0; i < additionalTaskTypes.length; i++) {
-		var additionalTaskType = additionalTaskTypes[i];
+	for(let i = 0; i < additionalTaskTypes.length; i++) {
+		const additionalTaskType = additionalTaskTypes[i];
 
 		Array.prototype.push.apply(tasks[additionalTaskType], options.additionalTasks[additionalTaskType]);
 	}
@@ -325,25 +325,25 @@ fabricator.formatOptions = function(options) {
 					value.build.prefix = "angular-";
 				}
 
-				for(var fileType in ["js", "html", "scss", "less", "css"]) {
-					var config = value[fileType];
+				for(let fileType in ["js", "html", "scss", "less", "css"]) {
+					const config = value[fileType];
 
-					for(var locationType in ["source, destination"]) {
-						var baseLocation = value.base[locationType];
+					for(let locationType in ["source, destination"]) {
+						const baseLocation = value.base[locationType];
 
 						if(utilities.isEmptyString(baseLocation)) {
 							continue;
 						}
 
-						var location = config[locationType];
+						const location = config[locationType];
 
 						if(utilities.isNonEmptyString(location)) {
 							config[locationType] = path.join(baseLocation, location);
 						}
 						else if(utilities.isNonEmptyArray()) {
-							var formattedLocation = [];
+							let formattedLocation = [];
 
-							for(var i = 0; i < location.length; i++) {
+							for(let i = 0; i < location.length; i++) {
 								formattedLocation.push(path.join(baseLocation, location[i]));
 							}
 
@@ -548,7 +548,7 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"else",
 														"for",
 														"while",
@@ -558,9 +558,9 @@ fabricator.formatOptions = function(options) {
 														"catch"
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -592,7 +592,7 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"++",
 														"--",
 														"+",
@@ -601,9 +601,9 @@ fabricator.formatOptions = function(options) {
 														"!"
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -628,7 +628,7 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"=",
 														",",
 														"+",
@@ -641,9 +641,9 @@ fabricator.formatOptions = function(options) {
 														"!=="
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -673,14 +673,14 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"++",
 														"--"
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -767,16 +767,16 @@ fabricator.formatOptions = function(options) {
 														trim: true,
 														nonEmpty: true,
 														validator: function(value, format, options) {
-															var validValues = [
+															const validValues = [
 																"[",
 																"]",
 																"{",
 																"}"
 															];
 
-															var validValue = false;
+															let validValue = false;
 
-															for(var i = 0; i < validValues.length; i++) {
+															for(let i = 0; i < validValues.length; i++) {
 																if(value === validValues[i]) {
 																	validValue = true;
 																	break;
@@ -815,7 +815,7 @@ fabricator.formatOptions = function(options) {
 														trim: true,
 														nonEmpty: true,
 														validator: function(value, format, options) {
-															var validValues = [
+															const validValues = [
 																"(",
 																")",
 																"{",
@@ -823,9 +823,9 @@ fabricator.formatOptions = function(options) {
 																"function"
 															];
 
-															var validValue = false;
+															let validValue = false;
 
-															for(var i = 0; i < validValues.length; i++) {
+															for(let i = 0; i < validValues.length; i++) {
 																if(value === validValues[i]) {
 																	validValue = true;
 																	break;
@@ -909,14 +909,14 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"else",
 														"catch"
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -961,7 +961,7 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"do",
 														"for",
 														"else",
@@ -969,9 +969,9 @@ fabricator.formatOptions = function(options) {
 														"try"
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -1009,7 +1009,7 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"=",
 														",",
 														"+",
@@ -1022,9 +1022,9 @@ fabricator.formatOptions = function(options) {
 														"!=="
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -1056,13 +1056,13 @@ fabricator.formatOptions = function(options) {
 														trim: true,
 														nonEmpty: true,
 														validator: function(value, format, options) {
-															var validValues = [
+															const validValues = [
 																"trailing"
 															];
 
-															var validValue = false;
+															let validValue = false;
 
-															for(var i = 0; i < validValues.length; i++) {
+															for(let i = 0; i < validValues.length; i++) {
 																if(value === validValues[i]) {
 																	validValue = true;
 																	break;
@@ -1094,7 +1094,7 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"do",
 														"else",
 														"try",
@@ -1102,9 +1102,9 @@ fabricator.formatOptions = function(options) {
 														"typeof"
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -1141,7 +1141,7 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"=",
 														"+",
 														"-",
@@ -1153,9 +1153,9 @@ fabricator.formatOptions = function(options) {
 														"!=="
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -1188,15 +1188,15 @@ fabricator.formatOptions = function(options) {
 												trim: true,
 												nonEmpty: true,
 												validator: function(value, format, options) {
-													var validValues = [
+													const validValues = [
 														"else",
 														"while",
 														"catch"
 													];
 
-													var validValue = false;
+													let validValue = false;
 
-													for(var i = 0; i < validValues.length; i++) {
+													for(let i = 0; i < validValues.length; i++) {
 														if(value === validValues[i]) {
 															validValue = true;
 															break;
@@ -1369,14 +1369,14 @@ fabricator.formatOptions = function(options) {
 														trim: true,
 														nonEmpty: true,
 														validator: function(value, format, options) {
-															var validValues = [
+															const validValues = [
 																"comments",
 																"emptyLines"
 															];
 
-															var validValue = false;
+															let validValue = false;
 
-															for(var i = 0; i < validValues.length; i++) {
+															for(let i = 0; i < validValues.length; i++) {
 																if(value === validValues[i]) {
 																	validValue = true;
 																	break;
@@ -2507,7 +2507,7 @@ function updateContent(buffer, content, encoding) {
 	return content;
 }
 
-var format = {
+const format = {
 	transformation: {
 		type: "object",
 		strict: true,
