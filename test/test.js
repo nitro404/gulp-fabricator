@@ -1,6 +1,6 @@
 "use strict";
 
-var fabricator = require("../dist/fabricator.js");
+var fabricator = require("../src/fabricator.js");
 var utilities = require("extra-utilities");
 var chai = require("chai");
 var expect = chai.expect;
