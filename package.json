@@ -8,7 +8,9 @@
     "lint": "gulp lint",
     "test": "mocha",
     "coverage": "gulp coverage",
-    "coveralls": "npm run coverage -- --report lcovonly && cat ./coverage/lcov.info | coveralls"
+    "coveralls": "npm run coverage -- --report lcovonly && cat ./coverage/lcov.info | coveralls",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "repository": {
     "type": "git",
@@ -58,9 +60,11 @@
     "plugin-error": "^1.0.1",
     "pump": "^3.0.0",
     "through2": "^2.0.3",
-    "uglify-js": "^3.4.1"
+    "uglify-js": "^3.4.1",
+    "snyk": "^1.189.0"
   },
   "devDependencies": {
     "chai": "^4.1.2"
-  }
+  },
+  "snyk": true
 }
