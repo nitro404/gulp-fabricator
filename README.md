@@ -18,7 +18,7 @@ fabricator.setup({
 	type: "Module",
 	tasks: ["JavaScript"],
 	build: {
-		transformation: "Node.js"
+		transformation: "UMD"
 	},
 	base: {
 		directory: __dirname
@@ -33,20 +33,9 @@ To install this module:
 npm install --save-dev gulp-fabricator
 ```
 
-## Building
-
-To build the distribution files for this module:
-```bash
-npm run build
-```
-or
-```bash
-gulp build
-```
-
 ## Notes
 
-JavaScript linting is permanently disabled for now until [gulp-jscs](https://github.com/jscs-dev/gulp-jscs) is updated to allow for direct specification of configuration options, see this [pull request](https://github.com/jscs-dev/gulp-jscs/pull/123) for updates.
+JavaScript linting is temporarily disabled for now until ESLint integration has been completed.
 
 [npm-url]: https://www.npmjs.com/package/gulp-fabricator
 [npm-version-image]: https://img.shields.io/npm/v/gulp-fabricator.svg
