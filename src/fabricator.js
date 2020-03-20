@@ -1630,6 +1630,14 @@ const format = {
 	}
 };
 
+function replaceModuleExportWithReturn(text) {
+	if(typeof text !== "string") {
+		return null;
+	}
+
+	return text.replace("module.exports =", "return");
+};
+
 fabricator.transformation = { };
 
 fabricator.transformation.indentText = function indentText(buffer, options) {
@@ -1743,7 +1751,7 @@ fabricator.transformation.umd = function umd(buffer, options) {
 		options.newLine +
 		options.indentation + "\"use strict\";" + options.newLine +
 		options.newLine +
-		utilities.trimTrailingNewlines(utilities.indentText(getContent(buffer), 1, options.indentation)) + options.newLine +
+		utilities.trimTrailingNewlines(utilities.indentText(replaceModuleExportWithReturn(getContent(buffer)), 1, options.indentation)) + options.newLine +
 		options.newLine +
 		"}));" + options.newLine,
 		options.encoding
