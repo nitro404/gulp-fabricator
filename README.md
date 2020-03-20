@@ -4,7 +4,11 @@
 [![Build Status][build-status-image]][build-status-url]
 [![Coverage Status][coverage-image]][coverage-url]
 [![Known Vulnerabilities][vulnerabilities-image]][vulnerabilities-url]
+[![Dependencies][dependencies-image]][dependencies-url]
 [![Downloads][npm-downloads-image]][npm-url]
+[![Install Size][install-size-image]][install-size-url]
+[![Contributors][contributors-image]][contributors-url]
+[![Pull Requests Welcome][pull-requests-image]][pull-requests-url]
 
 A multipurpose extension of gulp that allows for simplified and centralized processing and analyzation of Node.js modules and projects.
 
@@ -49,3 +53,15 @@ JavaScript linting is temporarily disabled for now until ESLint integration has 
 
 [vulnerabilities-url]: https://snyk.io/test/github/nitro404/gulp-fabricator?targetFile=package.json
 [vulnerabilities-image]: https://snyk.io/test/github/nitro404/gulp-fabricator/badge.svg?targetFile=package.json
+
+[dependencies-url]: https://david-dm.org/nitro404/gulp-fabricator
+[dependencies-image]: https://img.shields.io/david/nitro404/gulp-fabricator.svg
+
+[install-size-url]: https://packagephobia.now.sh/result?p=gulp-fabricator
+[install-size-image]: https://badgen.net/packagephobia/install/gulp-fabricator
+
+[contributors-url]: https://github.com/nitro404/gulp-fabricator/graphs/contributors
+[contributors-image]: https://img.shields.io/github/contributors/nitro404/gulp-fabricator.svg
+
+[pull-requests-url]: https://github.com/nitro404/gulp-fabricator/pulls
+[pull-requests-image]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
