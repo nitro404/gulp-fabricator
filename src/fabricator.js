@@ -1748,8 +1748,6 @@ fabricator.transformation.umd = function umd(buffer, options) {
 		options.indentation + "(global." + options.name + " = factory());" + options.newLine +
 		"} (this, function() {" + options.newLine +
 		options.newLine +
-		options.indentation + "\"use strict\";" + options.newLine +
-		options.newLine +
 		utilities.trimTrailingNewlines(utilities.indentText(replaceModuleExportWithReturn(getContent(buffer)), 1, options.indentation)) + options.newLine +
 		options.newLine +
 		"}));" + options.newLine,
