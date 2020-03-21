@@ -366,6 +366,46 @@ fabricator.formatOptions = function formatOptions(options) {
 					}
 				}
 
+				if(utilities.isEmptyString(value.repository)) {
+					try {
+						const packageFile = require(path.join(value.base.directory, "package.json"));
+
+						if(utilities.isObjectStrict(packageFile)) {
+							if(utilities.isObjectStrict(packageFile.repository)) {
+								if(utilities.isNonEmptyString(packageFile.repository.url)) {
+									value.repository = packageFile.repository.url;
+								}
+							}
+							else if(utilities.isNonEmptyString(packageFile.repository)) {
+								value.repository = packageFile.repository;
+							}
+						}
+
+						if(utilities.isEmptyString(value.repository)) {
+							console.warn("WARNING: Module package file is invalid or missing repository path.".brightYellow);
+						}
+					}
+					catch(error) {
+						console.warn("WARNING: Could not locate module package file.".brightYellow);
+					}
+				}
+
+				if(utilities.isNonEmptyString(value.repository)) {
+					value.repository = value.repository.replace(/^git\+/, "").replace("\.git$", "");
+
+					if(!utilities.isObjectStrict(value.js.docs.config.docdash.menu)) {
+						value.js.docs.config.docdash.menu = { };
+					}
+
+					if(!utilities.isObjectStrict(value.js.docs.config.docdash.menu.Repository)) {
+						value.js.docs.config.docdash.menu.Repository = { };
+					}
+
+					if(!utilities.isEmptyString(value.js.docs.config.docdash.menu.Repository.href)) {
+						value.js.docs.config.docdash.menu.Repository.href = value.repository;
+					}
+				}
+
 				return value;
 			},
 			format: {
@@ -389,6 +429,11 @@ fabricator.formatOptions = function formatOptions(options) {
 
 						return value;
 					}
+				},
+				repository: {
+					type: "string",
+					trim: true,
+					nonEmpty: true
 				},
 				js: {
 					type: "object",
@@ -516,7 +561,7 @@ fabricator.formatOptions = function formatOptions(options) {
 							format: {
 								enabled: {
 									type: "boolean",
-									default: false
+									default: true
 								},
 								destination: {
 									type: "string",
@@ -525,88 +570,42 @@ fabricator.formatOptions = function formatOptions(options) {
 									case: "lower",
 									default: "docs/"
 								},
+								repository: {
+									type: "boolean",
+									default: true
+								},
 								config: {
 									type: "object",
 									strict: true,
 									autopopulate: true,
 									format: {
-										tags: {
+										opts: {
 											type: "object",
 											strict: true,
 											autopopulate: true,
 											format: {
-												allowUnknownTags: {
-													type: "boolean",
-													default: true
+												template: {
+													type: "string",
+													trim: true,
+													nonEmpty: true,
+													default: "node_modules/docdash"
+												},
+												readme: {
+													type: "string",
+													trim: true,
+													nonEmpty: true,
+													default: "README.md"
 												}
 											}
 										},
-										plugins: {
-											type: "array",
-											autopopulate: true,
-											format: {
-												type: "string",
-												trim: true,
-												nonEmpty: true,
-												case: "lower",
-												default: "cerulean"
-											},
-											default: ["plugins/markdown"]
-										},
-										templates: {
+										docdash: {
 											type: "object",
 											strict: true,
 											autopopulate: true,
 											format: {
-												cleverLinks: {
-													type: "boolean",
-													default: false
-												},
-												monospaceLinks: {
-													type: "boolean",
-													default: false
-												},
-												default: {
-													type: "object",
-													strict: true,
-													autopopulate: true,
-													format: {
-														outputSourceFiles: {
-															type: "boolean",
-															default: true
-														}
-													}
-												},
-												path: {
-													type: "string",
-													trim: true,
-													nonEmpty: true,
-													case: "lower",
-													default: "ink-docstrap"
-												},
-												theme: {
-													type: "string",
-													trim: true,
-													nonEmpty: true,
-													case: "lower",
-													default: "cerulean"
-												},
-												navType: {
-													type: "string",
-													trim: true,
-													nonEmpty: true,
-													case: "lower",
-													default: "vertical"
-												},
-												linenums: {
+												search: {
 													type: "boolean",
 													default: true
-												},
-												dateFormat: {
-													type: "string",
-													trim: true,
-													nonEmpty: true,
-													default: "MMMM Do YYYY, h:mm:ss a"
 												}
 											}
 										}
