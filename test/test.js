@@ -28,6 +28,12 @@ describe("Gulp Fabricator", function() {
 				expect(fabricator.log.error).to.be.an.instanceof(Function);
 			});
 		});
+
+		describe("files", function() {
+			it("should be a function", function() {
+				expect(fabricator.log.files).to.be.an.instanceof(Function);
+			});
+		});
 	});
 
 	describe("globSource", function() {

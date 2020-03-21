@@ -19,6 +19,8 @@ const cleanCSS = require("gulp-clean-css");
 const postCSS = require("gulp-postcss");
 const autoprefixer = require("autoprefixer");
 const pump = require("pump");
+const vinylSourceStream = require("vinyl-source-stream");
+const vinylBuffer = require("vinyl-buffer");
 const isValidGlob = require("is-valid-glob");
 const mergeStream = require("merge-stream");
 const through = require("through2");
@@ -27,6 +29,7 @@ const utilities = require("extra-utilities");
 const changeCase = require("change-case-bundled");
 const path = require("path-extra");
 const colors = require("colors");
+const util = require("util");
 const PluginError = require("plugin-error");
 
 const fabricator = { };
@@ -61,6 +64,43 @@ fabricator.log.error = function logError(message) {
 
 		return through.obj();
 	}();
+};
+
+fabricator.log.files = function logFiles(title) {
+	let numberOfFiles = 0;
+	const filePaths = [];
+
+	return through.obj(
+		function(file, encoding, callback) {
+			if(fabricator.config.debug.verbose) {
+				if(fabricator.config.debug.logFiles) {
+					if(fabricator.config.debug.relativeFilePaths) {
+						filePaths.push(path.relative(fabricator.config.base.directory, file.path));
+					}
+					else {
+						filePaths.push(file.path);
+					}
+				}
+
+				numberOfFiles++;
+			}
+
+			return callback(null, file);
+		},
+		function(callback) {
+			if(fabricator.config.debug.verbose) {
+				fancyLog(colors.green((utilities.isNonEmptyString(title) ? title + " " : "") + "File" + (numberOfFiles === 1 ? "" : "s") + " (") + colors.brightBlue(numberOfFiles) + colors.green("):"));
+
+				for(let i = 0; i < filePaths.length; i++) {
+					const filePath = filePaths[i];
+
+					fancyLog(" - ".green + filePath.brightBlue);
+				}
+			}
+
+			return callback();
+		}
+	);
 };
 
 fabricator.globSource = function globSource(glob, options) {
@@ -100,6 +140,21 @@ fabricator.setup = function setup(options) {
 
 	fabricator.config = options;
 
+	if(fabricator.config.debug.logConfig) {
+		console.log("[".magenta + "Fabricator Configuration".brightBlue + "]".magenta);
+		console.log(util.inspect(
+			fabricator.config,
+			{
+				depth: Infinity,
+				maxArrayLength: Infinity,
+				showHidden: false,
+				getters: true,
+				colors: true
+			}
+		));
+		console.log("");
+	}
+
 	function namespace(value) {
 		if(utilities.isEmptyString(value)) {
 			return value;
@@ -121,6 +176,7 @@ fabricator.setup = function setup(options) {
 			gulp.task(namespace("build:js"), function(callback) {
 				pump([
 					fabricator.globSource(options.js.source).on("error", fancyLog.error)
+					.pipe(fabricator.log.files("JavaScript Source"))
 					.pipe(options.build.bundle
 						? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js").on("error", fancyLog.error)
 						: fabricator.noop())
@@ -146,6 +202,7 @@ fabricator.setup = function setup(options) {
 							? undefined
 							: options.js.sourcemaps.destination).on("error", fancyLog.error)
 						: fabricator.noop())
+					.pipe(fabricator.log.files("JavaScript Output"))
 					.pipe(gulp.dest(options.js.destination).on("error", fancyLog.error))
 					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
 						? filter(function(file) {
@@ -172,7 +229,8 @@ fabricator.setup = function setup(options) {
 						? sourcemaps.write(options.js.sourcemaps.embed
 							? undefined
 							: options.js.sourcemaps.destination).on("error", fancyLog.error)
-						: fabricator.noop()),
+						: fabricator.noop())
+					.pipe(options.js.minify ? fabricator.log.files("JavaScript Minified Output") : fabricator.noop()),
 					options.js.minify
 						? gulp.dest(options.js.destination).on("error", fancyLog.error)
 						: fabricator.noop()
@@ -195,15 +253,36 @@ fabricator.setup = function setup(options) {
 		if(options.js.docs.enabled) {
 			gulp.task(namespace("docs:js"), function(callback) {
 				fabricator.globSource(options.js.source, { read: false }).on("error", fancyLog.error)
+					.pipe(fabricator.log.files("Documentation Source"))
 					.pipe(jsdoc(utilities.merge(options.js.docs.config, { opts: { destination: options.js.docs.destination } }), callback).on("error", fancyLog.error));
 			});
 
 			tasks.docs.push(namespace("docs:js"));
+
+			if(options.js.docs.nojekyll) {
+				gulp.task(namespace("docs:nojekyll"), function(callback) {
+					const stream = vinylSourceStream(".nojekyll");
+
+					stream.write("");
+
+					process.nextTick(function() {
+						stream.end();
+					});
+
+					stream.pipe(vinylBuffer())
+						.pipe(fabricator.log.files("No Jekyll"))
+						.pipe(gulp.dest(options.js.docs.destination))
+						.on("end", callback);
+				});
+
+				tasks.docs.push(namespace("docs:nojekyll"));
+			}
 		}
 
 		if(options.lint.enabled && options.html.lint.enabled) {
 			gulp.task(namespace("lint:html"), function() {
 				fabricator.globSource(options.html.source).on("error", fancyLog.error)
+					.pipe(fabricator.log.files("HTML"))
 					.pipe(htmlHint(options.html.lint.options).on("error", fancyLog.error))
 					.pipe(htmlHint.reporter().on("error", fancyLog.error));
 			});
@@ -216,9 +295,11 @@ fabricator.setup = function setup(options) {
 		if(options.build.enabled) {
 			gulp.task(namespace("build:css"), function(callback) {
 				mergeStream(
-					fabricator.globSource(options.css.source).on("error", fancyLog.error),
+					fabricator.globSource(options.css.source).on("error", fancyLog.error)
+					.pipe(fabricator.log.files("CSS Source")),
 					options.build.tasks.includes("scss")
 						? gulp.src(options.scss.source).on("error", fancyLog.error)
+							.pipe(fabricator.log.files("SCSS/SASS Source"))
 							.pipe(options.build.stripComments.enabled && options.scss.stripComments.enabled
 								? stripComments(options.scss.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
@@ -226,6 +307,7 @@ fabricator.setup = function setup(options) {
 						: fabricator.globSource([]),
 					options.build.tasks.includes("less")
 						? fabricator.globSource(options.less.source).on("error", fancyLog.error)
+							.pipe(fabricator.log.files("LESS Source"))
 							.pipe(options.build.stripComments.enabled && options.less.stripComments.enabled
 								? stripComments(options.less.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
@@ -238,6 +320,7 @@ fabricator.setup = function setup(options) {
 					.pipe(options.build.stripComments.enabled && options.css.stripComments.enabled
 						? stripComments(options.css.stripComments.options).on("error", fancyLog.error)
 						: fabricator.noop())
+					.pipe(fabricator.log.files("CSS Output"))
 					.pipe(gulp.dest(options.css.destination).on("error", fancyLog.error))
 					.pipe(options.css.minify
 						? cleanCSS().on("error", fancyLog.error)
@@ -245,6 +328,7 @@ fabricator.setup = function setup(options) {
 					.pipe(options.css.minify
 						? rename({ extname: ".min.css" }).on("error", fancyLog.error)
 						: fabricator.noop())
+					.pipe(options.css.minify ? fabricator.log.files("CSS Minified Output") : fabricator.noop())
 					.pipe(options.css.minify
 						? gulp.dest(options.css.destination).on("error", fancyLog.error)
 						: fabricator.noop())
@@ -257,6 +341,7 @@ fabricator.setup = function setup(options) {
 		if(options.lint.enabled && options.scss.lint.enabled) {
 			gulp.task(namespace("lint:scss"), function() {
 				fabricator.globSource(options.scss.source).on("error", fancyLog.error)
+					.pipe(fabricator.log.files("SCSS/SASS Source"))
 					.pipe(sassLint(options.scss.lint))
 					.pipe(sassLint.format())
 					.pipe(sassLint.failOnError());
@@ -268,6 +353,7 @@ fabricator.setup = function setup(options) {
 		if(options.lint.enabled && options.less.lint.enabled) {
 			gulp.task(namespace("lint:less"), function() {
 				fabricator.globSource(options.less.source).on("error", fancyLog.error)
+					.pipe(fabricator.log.files("LESS Source"))
 					.pipe(lessHint(options.less.lint.options))
 					.pipe(lessHint.reporter(options.less.lint.reporter))
 					.pipe(lessHint.failOnError());
@@ -430,6 +516,30 @@ fabricator.formatOptions = function formatOptions(options) {
 						return value;
 					}
 				},
+				debug: {
+					type: "object",
+					strict: true,
+					autopopulate: true,
+					removeExtra: true,
+					format: {
+						verbose: {
+							type: "boolean",
+							default: process.argv.includes("--debug") || process.argv.includes("--verbose")
+						},
+						logConfig: {
+							type: "boolean",
+							default: process.argv.includes("--debug")
+						},
+						logFiles: {
+							type: "boolean",
+							default: true
+						},
+						relativeFilePaths: {
+							type: "boolean",
+							default: true
+						}
+					}
+				},
 				repository: {
 					type: "string",
 					trim: true,
@@ -549,7 +659,7 @@ fabricator.formatOptions = function formatOptions(options) {
 							format: {
 								enabled: {
 									type: "boolean",
-									default: false
+									default: true
 								}
 							}
 						},
@@ -571,6 +681,10 @@ fabricator.formatOptions = function formatOptions(options) {
 									default: "docs/"
 								},
 								repository: {
+									type: "boolean",
+									default: true
+								},
+								nojekyll: {
 									type: "boolean",
 									default: true
 								},
@@ -1381,7 +1495,8 @@ fabricator.formatOptions = function formatOptions(options) {
 							type: "string",
 							trim: true,
 							nonEmpty: true,
-							required: true
+							required: true,
+							default: process.cwd()
 						},
 						source: {
 							type: "string",
