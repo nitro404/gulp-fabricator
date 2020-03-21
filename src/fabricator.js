@@ -477,7 +477,7 @@ fabricator.formatOptions = function formatOptions(options) {
 				}
 
 				if(utilities.isNonEmptyString(value.repository)) {
-					value.repository = value.repository.replace(/^git\+/, "").replace("\.git$", "");
+					value.repository = value.repository.replace(/^git\+/, "").replace(/\.git$/, "");
 
 					if(!utilities.isObjectStrict(value.js.docs.config.docdash.menu)) {
 						value.js.docs.config.docdash.menu = { };
@@ -487,7 +487,7 @@ fabricator.formatOptions = function formatOptions(options) {
 						value.js.docs.config.docdash.menu.Repository = { };
 					}
 
-					if(!utilities.isEmptyString(value.js.docs.config.docdash.menu.Repository.href)) {
+					if(utilities.isEmptyString(value.js.docs.config.docdash.menu.Repository.href)) {
 						value.js.docs.config.docdash.menu.Repository.href = value.repository;
 					}
 				}
