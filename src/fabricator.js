@@ -188,7 +188,7 @@ fabricator.setup = function setup(options) {
 							name: options.build.exportName
 						}).on("error", fancyLog.error)
 						: fabricator.noop())
-					.pipe(options.build.stripComments.enabled && options.js.stripComments.enabled
+					.pipe(options.build.stripComments && options.js.stripComments.enabled
 						? stripComments(options.js.stripComments.options).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
@@ -204,7 +204,6 @@ fabricator.setup = function setup(options) {
 							? undefined
 							: options.js.sourcemaps.destination).on("error", fancyLog.error)
 						: fabricator.noop())
-					.pipe(fabricator.log.files("JavaScript Output"))
 					.pipe(gulp.dest(options.js.destination).on("error", fancyLog.error))
 					.pipe(options.js.sourcemaps.enabled && options.js.sourcemaps.postCompile
 						? filter(function(file) {
@@ -217,6 +216,7 @@ fabricator.setup = function setup(options) {
 							return true;
 						}).on("error", fancyLog.error)
 						: fabricator.noop())
+					.pipe(fabricator.log.files("JavaScript Output"))
 					.pipe(options.js.minify
 						? rename({ extname: ".min.js" }).on("error", fancyLog.error)
 						: fabricator.noop())
@@ -302,7 +302,7 @@ fabricator.setup = function setup(options) {
 					options.build.tasks.includes("scss")
 						? gulp.src(options.scss.source).on("error", fancyLog.error)
 							.pipe(fabricator.log.files("SCSS/SASS Source"))
-							.pipe(options.build.stripComments.enabled && options.scss.stripComments.enabled
+							.pipe(options.build.stripComments && options.scss.stripComments.enabled
 								? stripComments(options.scss.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
 							.pipe(sass().on("error", sass.logError))
@@ -310,7 +310,7 @@ fabricator.setup = function setup(options) {
 					options.build.tasks.includes("less")
 						? fabricator.src(options.less.source).on("error", fancyLog.error)
 							.pipe(fabricator.log.files("LESS Source"))
-							.pipe(options.build.stripComments.enabled && options.less.stripComments.enabled
+							.pipe(options.build.stripComments && options.less.stripComments.enabled
 								? stripComments(options.less.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
 							.pipe(less())
@@ -319,7 +319,7 @@ fabricator.setup = function setup(options) {
 					.pipe(options.css.autoprefixer.enabled
 						? postCSS([autoprefixer(options.css.autoprefixer.options)]).on("error", fancyLog.error)
 						: fabricator.noop())
-					.pipe(options.build.stripComments.enabled && options.css.stripComments.enabled
+					.pipe(options.build.stripComments && options.css.stripComments.enabled
 						? stripComments(options.css.stripComments.options).on("error", fancyLog.error)
 						: fabricator.noop())
 					.pipe(fabricator.log.files("CSS Output"))
