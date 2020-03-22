@@ -23,9 +23,6 @@ fabricator.setup({
 	tasks: ["JavaScript"],
 	build: {
 		transformation: "UMD"
-	},
-	base: {
-		directory: __dirname
 	}
 });
 ```
