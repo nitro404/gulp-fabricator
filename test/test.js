@@ -36,9 +36,9 @@ describe("Gulp Fabricator", function() {
 		});
 	});
 
-	describe("globSource", function() {
+	describe("src", function() {
 		it("should be a function", function() {
-			expect(fabricator.globSource).to.be.an.instanceof(Function);
+			expect(fabricator.src).to.be.an.instanceof(Function);
 		});
 	});
 

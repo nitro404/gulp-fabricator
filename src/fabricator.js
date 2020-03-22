@@ -17,6 +17,7 @@ const lessHint = require("gulp-lesshint");
 const htmlHint = require("gulp-htmlhint");
 const cleanCSS = require("gulp-clean-css");
 const postCSS = require("gulp-postcss");
+const nodemon = require("gulp-nodemon");
 const autoprefixer = require("autoprefixer");
 const pump = require("pump");
 const vinylSourceStream = require("vinyl-source-stream");
@@ -103,7 +104,7 @@ fabricator.log.files = function logFiles(title) {
 	);
 };
 
-fabricator.globSource = function globSource(glob, options) {
+fabricator.src = function src(glob, options) {
 	return gulp.src(isValidGlob(glob) ? glob : " ", utilities.merge({ allowEmpty: true }, options));
 };
 
@@ -167,6 +168,7 @@ fabricator.setup = function setup(options) {
 		build: [],
 		lint: [],
 		docs: [],
+		web: [],
 		watch: [],
 		default: []
 	};
@@ -175,7 +177,7 @@ fabricator.setup = function setup(options) {
 		if(options.build.enabled) {
 			gulp.task(namespace("build:js"), function(callback) {
 				pump([
-					fabricator.globSource(options.js.source).on("error", fancyLog.error)
+					fabricator.src(options.js.source).on("error", fancyLog.error)
 					.pipe(fabricator.log.files("JavaScript Source"))
 					.pipe(options.build.bundle
 						? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js").on("error", fancyLog.error)
@@ -252,7 +254,7 @@ fabricator.setup = function setup(options) {
 
 		if(options.js.docs.enabled) {
 			gulp.task(namespace("docs:js"), function(callback) {
-				fabricator.globSource(options.js.source, { read: false }).on("error", fancyLog.error)
+				fabricator.src(options.js.source, { read: false }).on("error", fancyLog.error)
 					.pipe(fabricator.log.files("Documentation Source"))
 					.pipe(jsdoc(utilities.merge(options.js.docs.config, { opts: { destination: options.js.docs.destination } }), callback).on("error", fancyLog.error));
 			});
@@ -281,7 +283,7 @@ fabricator.setup = function setup(options) {
 
 		if(options.lint.enabled && options.html.lint.enabled) {
 			gulp.task(namespace("lint:html"), function() {
-				fabricator.globSource(options.html.source).on("error", fancyLog.error)
+				fabricator.src(options.html.source).on("error", fancyLog.error)
 					.pipe(fabricator.log.files("HTML"))
 					.pipe(htmlHint(options.html.lint.options).on("error", fancyLog.error))
 					.pipe(htmlHint.reporter().on("error", fancyLog.error));
@@ -295,7 +297,7 @@ fabricator.setup = function setup(options) {
 		if(options.build.enabled) {
 			gulp.task(namespace("build:css"), function(callback) {
 				mergeStream(
-					fabricator.globSource(options.css.source).on("error", fancyLog.error)
+					fabricator.src(options.css.source).on("error", fancyLog.error)
 					.pipe(fabricator.log.files("CSS Source")),
 					options.build.tasks.includes("scss")
 						? gulp.src(options.scss.source).on("error", fancyLog.error)
@@ -304,15 +306,15 @@ fabricator.setup = function setup(options) {
 								? stripComments(options.scss.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
 							.pipe(sass().on("error", sass.logError))
-						: fabricator.globSource([]),
+						: fabricator.src([]),
 					options.build.tasks.includes("less")
-						? fabricator.globSource(options.less.source).on("error", fancyLog.error)
+						? fabricator.src(options.less.source).on("error", fancyLog.error)
 							.pipe(fabricator.log.files("LESS Source"))
 							.pipe(options.build.stripComments.enabled && options.less.stripComments.enabled
 								? stripComments(options.less.stripComments.options).on("error", fancyLog.error)
 								: fabricator.noop())
 							.pipe(less())
-						: fabricator.globSource([]).on("error", fancyLog.error))
+						: fabricator.src([]).on("error", fancyLog.error))
 					.pipe(rename({ prefix: utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix }).on("error", fancyLog.error))
 					.pipe(options.css.autoprefixer.enabled
 						? postCSS([autoprefixer(options.css.autoprefixer.options)]).on("error", fancyLog.error)
@@ -340,7 +342,7 @@ fabricator.setup = function setup(options) {
 
 		if(options.lint.enabled && options.scss.lint.enabled) {
 			gulp.task(namespace("lint:scss"), function() {
-				fabricator.globSource(options.scss.source).on("error", fancyLog.error)
+				fabricator.src(options.scss.source).on("error", fancyLog.error)
 					.pipe(fabricator.log.files("SCSS/SASS Source"))
 					.pipe(sassLint(options.scss.lint))
 					.pipe(sassLint.format())
@@ -352,7 +354,7 @@ fabricator.setup = function setup(options) {
 
 		if(options.lint.enabled && options.less.lint.enabled) {
 			gulp.task(namespace("lint:less"), function() {
-				fabricator.globSource(options.less.source).on("error", fancyLog.error)
+				fabricator.src(options.less.source).on("error", fancyLog.error)
 					.pipe(fabricator.log.files("LESS Source"))
 					.pipe(lessHint(options.less.lint.options))
 					.pipe(lessHint.reporter(options.less.lint.reporter))
@@ -360,6 +362,18 @@ fabricator.setup = function setup(options) {
 			});
 
 			tasks.lint.push(namespace("lint:less"));
+		}
+	}
+
+	if(options.type === "website") {
+		if(options.web.nodemon) {
+			gulp.task(namespace("web:nodemon"), function(callback) {
+				nodemon(options.web.nodemon.config);
+
+				return callback();
+			});
+
+			tasks.web.push(namespace("web:nodemon"));
 		}
 	}
 
@@ -391,6 +405,10 @@ fabricator.setup = function setup(options) {
 
 	tasks.default.push(namespace("build"), namespace("lint"), namespace("docs"));
 
+	if(options.type === "website") {
+		tasks.default.push(namespace("web"));
+	}
+
 	const additionalTaskTypes = Object.keys(options.additionalTasks);
 
 	for(let i = 0; i < additionalTaskTypes.length; i++) {
@@ -402,6 +420,7 @@ fabricator.setup = function setup(options) {
 	gulp.task(namespace("build"), fabricator.seriesTasks(tasks.build));
 	gulp.task(namespace("lint"), fabricator.seriesTasks(tasks.lint));
 	gulp.task(namespace("docs"), fabricator.seriesTasks(tasks.docs));
+	gulp.task(namespace("web"), fabricator.seriesTasks(tasks.web));
 	gulp.task(namespace("watch"), fabricator.seriesTasks(tasks.watch));
 	gulp.task(namespace("default"), fabricator.seriesTasks(tasks.default));
 };
@@ -492,6 +511,26 @@ fabricator.formatOptions = function formatOptions(options) {
 					}
 				}
 
+				if(value.type === "website") {
+					try {
+						const nodemonConfigFile = require(path.join(value.base.directory, "nodemon.json"));
+
+						if(utilities.isObjectStrict(nodemonConfigFile)) {
+							value.web.nodemon.config = utilities.merge(value.web.nodemon.config, nodemonConfigFile);
+						}
+						else {
+							console.warn("WARNING: Nodemon configuration file is empty or malformed.".brightYellow);
+						}
+					}
+					catch(error) {
+						console.warn("WARNING: Could not locate nodemon configuration file.".brightYellow);
+					}
+				}
+
+				if(!utilities.isBoolean(value.web.nodemon.config.verbose) || (!value.web.nodemon.config.verbose && value.debug.verbose)) {
+					value.web.nodemon.config.verbose = value.debug.verbose;
+				}
+
 				return value;
 			},
 			format: {
@@ -544,6 +583,91 @@ fabricator.formatOptions = function formatOptions(options) {
 					type: "string",
 					trim: true,
 					nonEmpty: true
+				},
+				web: {
+					type: "object",
+					strict: true,
+					autopopulate: true,
+					removeExtra: true,
+					format: {
+						nodemon: {
+							type: "object",
+							strict: true,
+							autopopulate: true,
+							removeExtra: true,
+							format: {
+								enabled: {
+									type: "boolean",
+									default: true
+								},
+								config: {
+									type: "object",
+									strict: true,
+									autopopulate: true,
+									removeExtra: true,
+									format: {
+										verbose: {
+											type: "boolean"
+										},
+										restartable: {
+											type: "string",
+											trim: true,
+											nonEmpty: true,
+											default: "rs"
+										},
+										ignore: {
+											type: "array",
+											nonEmpty: true,
+											default: [
+												".git",
+												"node_modules/**/node_modules",
+												"views",
+												"scss",
+												"sass",
+												"less",
+												"public"
+											],
+											format: {
+												type: "string",
+												trim: true,
+												nonEmpty: true
+											}
+										},
+										execMap: {
+											type: "object",
+											strict: true,
+											autopopulate: true,
+											removeExtra: true,
+											format: {
+												js: {
+													type: "string",
+													trim: true,
+													nonEmpty: true,
+													default: "node"
+												}
+											}
+										},
+										watch: {
+											type: "array",
+											nonEmpty: true,
+											default: [".", "website/"],
+											format: {
+												type: "string",
+												trim: true,
+												nonEmpty: true
+											}
+										},
+										ext: {
+											type: "string",
+											trim: true,
+											nonEmpty: true,
+											default: "js,json"
+										}
+									}
+								}
+							}
+						}
+					}
 				},
 				js: {
 					type: "object",
@@ -614,7 +738,7 @@ fabricator.formatOptions = function formatOptions(options) {
 									format: {
 										type: "string",
 										trim: true,
-										nonEmpty: true,
+										nonEmpty: true
 									}
 								}
 							}
