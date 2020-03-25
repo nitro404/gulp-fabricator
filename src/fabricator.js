@@ -836,6 +836,18 @@ fabricator.formatOptions = function formatOptions(options) {
 												}
 											}
 										},
+										plugins: {
+											type: "array",
+											nonEmpty: true,
+											default: [
+												"plugins/markdown"
+											],
+											format: {
+												type: "string",
+												trim: true,
+												nonEmpty: true
+											}
+										},
 										docdash: {
 											type: "object",
 											strict: true,
