@@ -7,6 +7,7 @@ const concat = require("gulp-concat");
 const stripComments = require("gulp-strip-comments");
 const sourcemaps = require("gulp-sourcemaps");
 const babel = require("gulp-babel");
+const typeScript = require("gulp-typescript");
 const uglifyJS = require("uglify-js");
 const uglifyComposer = require("gulp-uglify/composer");
 const jsdoc = require("gulp-jsdoc3");
@@ -177,8 +178,14 @@ fabricator.setup = function setup(options) {
 		if(options.build.enabled) {
 			gulp.task(namespace("build:js"), function(callback) {
 				pump([
-					fabricator.src(options.js.source).on("error", fancyLog.error)
-					.pipe(fabricator.log.files("JavaScript Source"))
+					mergeStream(
+						fabricator.src(options.js.source).on("error", fancyLog.error)
+							.pipe(fabricator.log.files("JavaScript Source")),
+						fabricator.src(options.ts.source).on("error", fancyLog.error))
+							.pipe(fabricator.log.files("TypeScript Source"))
+							.pipe(typeScript({
+								noImplicitAny: true
+							}))
 					.pipe(options.build.bundle
 						? concat((utilities.isEmptyString(options.build.prefix) ? "" : options.build.prefix) + options.build.fileName + ".js").on("error", fancyLog.error)
 						: fabricator.noop())
@@ -300,7 +307,7 @@ fabricator.setup = function setup(options) {
 					fabricator.src(options.css.source).on("error", fancyLog.error)
 					.pipe(fabricator.log.files("CSS Source")),
 					options.build.tasks.includes("scss")
-						? gulp.src(options.scss.source).on("error", fancyLog.error)
+						? fabricator.src(options.scss.source).on("error", fancyLog.error)
 							.pipe(fabricator.log.files("SCSS/SASS Source"))
 							.pipe(options.build.stripComments && options.scss.stripComments.enabled
 								? stripComments(options.scss.stripComments.options).on("error", fancyLog.error)
@@ -665,6 +672,23 @@ fabricator.formatOptions = function formatOptions(options) {
 										}
 									}
 								}
+							}
+						}
+					}
+				},
+				ts: {
+					type: "object",
+					strict: true,
+					autopopulate: true,
+					removeExtra: true,
+					format: {
+						source: {
+							type: "array",
+							default: ["src/**/*.ts"],
+							format: {
+								type: "string",
+								trim: true,
+								nonEmpty: true
 							}
 						}
 					}
