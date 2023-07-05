@@ -31,7 +31,7 @@
   "dependencies": {
     "@babel/core": "7.8.7",
     "@babel/polyfill": "7.8.7",
-    "@babel/preset-env": "7.8.7",
+    "@babel/preset-env": "7.22.6",
     "autoprefixer": "9.7.4",
     "change-case-bundled": "^1.1.2",
     "colors": "1.4.0",
